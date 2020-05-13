@@ -9,6 +9,8 @@ set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/heatsink")
 add_library(heatsink
 	"${SRC}/error_debug.cpp"
 	"${SRC}/error_exception.cpp"
+	"${SRC}/platform_context.cpp"
+	"${SRC}/platform_window.cpp"
 )
 
 target_compile_definitions(heatsink PRIVATE GLFW_INCLUDE_NONE)
