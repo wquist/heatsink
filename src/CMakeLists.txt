@@ -11,6 +11,7 @@ add_library(heatsink
 	"${SRC}/error_exception.cpp"
 	"${SRC}/platform_context.cpp"
 	"${SRC}/platform_window.cpp"
+	"${SRC}/traits_name.cpp"
 )
 
 target_compile_definitions(heatsink PRIVATE GLFW_INCLUDE_NONE)

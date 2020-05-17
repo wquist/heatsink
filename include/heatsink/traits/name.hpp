@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <heatsink/platform/gl.hpp>
 #include <heatsink/traits/enum.hpp>
 
@@ -19,6 +21,7 @@ namespace heatsink::gl {
 		 * (for the screen buffer) and textures (for unbinding).
 		 */
 		static constexpr bool is_default_constructible = false;
+
 		/**
 		 * Determine whether the `GLenum` value (an object type) can be bound to
 		 * multiple targets in an OpenGL context. This means that the
@@ -52,10 +55,147 @@ namespace heatsink::gl {
 		 * and bind unit, depending on the `variable` and `image` parameters of
 		 * this target. Note that the order is always `name, target, unit`.
 		 */
-		static void bind(...);
+		static void bind(GLuint name, ...);
 
 	private:
 		// Prevent a `name_traits` object from being constructed.
 		name_traits() = default;
+	};
+}
+
+namespace heatsink::gl {
+	template<>
+	class name_traits<GL_BUFFER> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = true;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, GLenum target);
+	};
+
+	template<>
+	class name_traits<GL_FRAMEBUFFER> {
+	public:
+		static constexpr bool is_default_constructible = true;
+
+		static constexpr bool has_target = true;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, GLenum target);
+	};
+
+	template<>
+	class name_traits<GL_PROGRAM_PIPELINE> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = false;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name);
+	};
+
+	template<>
+	class name_traits<GL_QUERY> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = true;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, GLenum target);
+	};
+
+	template<>
+	class name_traits<GL_RENDERBUFFER> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = false;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name);
+	};
+
+	template<>
+	class name_traits<GL_SAMPLER> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = false;
+		static constexpr bool has_image_unit = true;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, std::size_t unit);
+	};
+
+	template<>
+	class name_traits<GL_TEXTURE> {
+	public:
+		static constexpr bool is_default_constructible = true;
+
+		static constexpr bool has_target = true;
+		static constexpr bool has_image_unit = true;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, GLenum target, std::size_t unit);
+	};
+
+	template<>
+	class name_traits<GL_TRANSFORM_FEEDBACK> {
+	public:
+		static constexpr bool is_default_constructible = true;
+
+		static constexpr bool has_target = true;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name, GLenum target);
+	};
+
+	template<>
+	class name_traits<GL_VERTEX_ARRAY> {
+	public:
+		static constexpr bool is_default_constructible = false;
+
+		static constexpr bool has_target = false;
+		static constexpr bool has_image_unit = false;
+
+	public:
+		static GLuint create();
+		static void destroy(GLuint);
+
+		static void bind(GLuint name);
 	};
 }

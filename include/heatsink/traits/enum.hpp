@@ -8,7 +8,7 @@ namespace heatsink::gl {
 	 * object type. Note that this includes all objects, including programs,
 	 * shaders, and sync objects.
 	 * 
-	 * FIXME: what is the best enum value for sync objects?
+	 * FIXME: determine the best enum value for sync objects.
 	 */
 	constexpr bool is_object(GLenum);
 	/**
