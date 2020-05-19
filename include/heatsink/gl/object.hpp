@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cassert>
+#include <cstdlib>
+
 #include <heatsink/platform/gl.hpp>
 #include <heatsink/traits/name.hpp>
 
@@ -19,8 +22,7 @@ namespace heatsink::gl {
 	class object : private detail::object_target_mixin<V> {
 	private:
 		// Provide an alias to the traits used throughout the class.
-		template<GLenum VV = V>
-		using traits = name_traits<VV>;
+		using name = name_traits<V>;
 
 	public:
 		/**
@@ -28,10 +30,10 @@ namespace heatsink::gl {
 		 * method for the templatize object type. Some objects may take no
 		 * arguments, while others will take a bind target enumeration.
 		 */
-		template<GLenum VV = V> requires (traits<VV>::has_target == false)
-		explicit object();
-		template<GLenum VV = V> requires (traits<VV>::has_target == true)
-		explicit object(GLenum mode);
+		explicit object()
+			requires (name::has_target == false);
+		explicit object(GLenum mode)
+			requires (name::has_target == true);
 
 		// Objects are noncopyable, since only one reference to an OpenGL state
 		// should exist at a time, but are moveable.
@@ -44,25 +46,25 @@ namespace heatsink::gl {
 	protected:
 		// Create an invalid instance of an object.
 		object(std::nullptr_t);
-		// Allow an object to be copied internally. This is usefully for `view`-
-		// like classes used in some object types.
-		object(const object&) = default;
 		// Allow a valid object to be constructed with the default name. This is
 		// only valid for some object types (like framebuffers). Note that of
 		// the objects that are default constructible, they all require targets,
 		// so only one overload is needed.
-		template<GLenum VV = V> requires (traits<VV>::is_default_constructible)
-		object(std::nullptr_t, GLenum mode);
+		object(std::nullptr_t, GLenum mode)
+			requires (name::is_default_constructible);
+		// Allow an object to be copied internally. This is usefully for `view`-
+		// like classes used in some object types.
+		object(const object&) = default;
 
 	public:
 		/**
 		 * Bind an object to its target. For some objects, this means no
 		 * arguments are needed, while others will require an image unit value.
 		 */
-		template<GLenum VV = V> requires (traits<VV>::has_bind_unit == false)
-		void bind() const;
-		template<GLenum VV = V> requires (traits<VV>::has_bind_unit == true)
-		void bind(std::size_t unit) const;
+		void bind() const
+			requires (name::has_bind_unit == false);
+		void bind(std::size_t unit) const
+			requires (name::has_bind_unit == true);
 
 		/**
 		 * Check if the object instance is valid. An object should be valid
@@ -82,8 +84,21 @@ namespace heatsink::gl {
 		 * Retrieve the OpenGL mode this object was created with. This method
 		 * is only valid for object types that have bind targets.
 		 */
-		
-		GLenum get_target() const;
+		GLenum get_target() const
+			requires (name::has_target == true);
+
+	protected:
+		// Permanently change the bind target of this object. This also performs
+		// the same functions as `bind()` after the target is changed.
+		void rebind(GLenum mode)
+			requires (name::has_target == true);
+
+		// Clear the OpenGL name of this object without freeing it.
+		void reset();
+
+	private:
+		// The OpenGL identifier for this object. Invalid when set to `0`.
+		GLuint m_name;
 	};
 
 	// An empty non-variable object. See the above forward declaration.
@@ -114,6 +129,112 @@ namespace heatsink::gl {
 }
 
 namespace heatsink::gl {
+	template<GLenum V>
+	object<V>::object() requires (name::has_target == false)
+	: detail::object_target_mixin<V>(), m_name{name::create()} {}
+
+	template<GLenum V>
+	object<V>::object(GLenum mode) requires (name::has_target == true)
+	: detail::object_target_mixin<V>(), m_name{name::create()} {
+		// Set the target after the object has been created so it is left in
+		// the correct state in case of an exception.
+		detail::object_target_mixin<V>::set_target(mode);
+	}
+
+	template<GLenum V>
+	object<V>::object(object&& other) noexcept
+	: detail::object_target_mixin<V>(std::move(other)), m_name{other.m_name} {
+		other.reset();
+	}
+
+	template<GLenum V>
+	object<V>::~object() {
+		if (m_name)
+			name::destroy(m_name);
+	}
+
+	template<GLenum V>
+	object<V>& object<V>::operator =(object&& other) noexcept {
+		if (m_name)
+			name::destroy(m_name);
+
+		detail::object_target_mixin::operator =(std::move(other));
+		m_name = other.m_name;
+
+		other.reset();
+		return *this;
+	}
+
+	template<GLenum V>
+	object<V>::object(std::nullptr_t)
+	: detail::object_target_mixin<V>(), m_name{0} {}
+
+	template<GLenum V>
+	object<V>::object(std::nullptr_t, GLenum mode) requires (name::is_default_constructible)
+	: detail::object_target_mixin<V>(mode), m_name{0} {}
+
+	template<GLenum V>
+	void object<V>::bind() const requires (name::has_bind_unit == false) {
+		assert(this->is_valid());
+
+		// When binding, use the mixin target accessor in case we are binding
+		// the default (name `0`) object of this type.
+		if constexpr (name::has_target)
+			name::bind(m_name, detail::object_target_mixin<V>::get_target());
+		else
+			name::bind(m_name);
+	}
+
+	template<GLenum V>
+	void object<V>::bind(std::size_t unit) const requires (name::has_bind_unit == true) {
+		assert(this->is_valid());
+
+		// When binding, use the mixin target accessor in case we are binding
+		// the default (name `0`) object of this type.
+		if constexpr (name::has_target)
+			name::bind(m_name, detail::object_target_mixin<V>::get_target(), unit);
+		else
+			name::bind(m_name, unit);
+	}
+
+	template<GLenum V>
+	bool object<V>::is_valid() const {
+		auto is_default = (name::is_default_constructible && name == 0);
+		return (m_name != 0 || is_default);
+	}
+
+	template<GLenum V>
+	GLuint object<V>::get() const {
+		assert(this->is_valid());
+		return m_name;
+	}
+
+	template<GLenum V>
+	GLenum object<V>::get_target() const requires (name::has_target == true) {
+		assert(this->is_valid());
+		return detail::object_target_mixin<V>::get_target();
+	}
+
+	template<GLenum V>
+	void object<V>::rebind(GLenum mode) requires (name::has_target == true) {
+		assert(this->is_valid());
+
+		detail::object_target_mixin<V>::set_target(mode);
+		// An object that will be rebound normally should not have a bind unit,
+		// but check to ensure correct syntax.
+		if constexpr (name::has_bind_unit)
+			this->bind(0u);
+		else
+			this->bind();
+	}
+
+	template<GLenum V>
+	void object<V>::reset() {
+		m_name = 0;
+		// Reset the target to ensure the object is left in an invalid state.
+		detail::object_target_mixin<V>::set_target(GL_NONE);
+	}
+
 	template<GLenum V>
 	detail::object_target_mixin<V, true>::object_target_mixin(GLenum mode)
 	: m_target{mode} {}
