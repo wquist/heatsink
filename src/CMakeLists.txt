@@ -7,8 +7,10 @@ find_package(glm    REQUIRED)
 
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/heatsink")
 add_library(heatsink
+	"${SRC}/error_compile.cpp"
 	"${SRC}/error_debug.cpp"
 	"${SRC}/error_exception.cpp"
+	"${SRC}/gl_shader.cpp"
 	"${SRC}/platform_context.cpp"
 	"${SRC}/platform_window.cpp"
 	"${SRC}/traits_name.cpp"
