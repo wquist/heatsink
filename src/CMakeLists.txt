@@ -11,6 +11,7 @@ add_library(heatsink
 	"${SRC}/error_debug.cpp"
 	"${SRC}/error_exception.cpp"
 	"${SRC}/gl_shader.cpp"
+	"${SRC}/gl_program.cpp"
 	"${SRC}/platform_context.cpp"
 	"${SRC}/platform_window.cpp"
 	"${SRC}/traits_name.cpp"

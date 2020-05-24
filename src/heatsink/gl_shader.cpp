@@ -52,9 +52,6 @@ namespace heatsink::gl {
 
 	shader::shader(const std::string& src, GLenum stage, const std::string& from)
 	: m_name{glCreateShader(stage)}, m_stage{stage} {
-		if (!m_name)
-			throw exception("gl::shader", "could not create shader object.");
-
 		this->compile(src, from);
 	}
 
