@@ -7,14 +7,18 @@
 #include <heatsink/error/compile.hpp>
 #include <heatsink/error/exception.hpp>
 
+using namespace std::string_literals;
+
 namespace {
 	using exception = heatsink::exception;
 
 	// Read the contents of the specified file.
 	std::string read_string(const std::filesystem::path& path) {
 		std::ifstream data(path.native());
-		if (!data.is_open())
+		if (!data.is_open()) {
+			std::cerr << "[heatsink::gl::shader] unknown path '" << path.string() << "'" << std::endl;
 			throw exception("gl::shader", "could not open path.");
+		}
 
 		std::istreambuf_iterator<char> begin{data};
 		return std::string(begin, {});
@@ -32,22 +36,20 @@ namespace {
 		else if (ext == ".tese") return GL_TESS_EVALUATION_SHADER;
 		else if (ext == ".geom") return GL_GEOMETRY_SHADER;
 		else if (ext == ".comp") return GL_COMPUTE_SHADER;
-		else
-			throw exception("gl::shader", "unknown GLSL extension.");
+		else {
+			std::cerr << "[heatsink::gl::shader] unknown file extension '" << ext.string() << "'." << std::endl;
+			throw exception("gl::shader", "unknown GLSL source extension.");
+		}
 	}
 }
 
 namespace heatsink::gl {
 	shader shader::from_file(const std::filesystem::path& path, GLenum stage) {
-		std::ifstream data(path.native());
-		if (!data.is_open())
-			throw heatsink::exception("gl::shader", "could not open path.");
-
-		std::istreambuf_iterator<char> begin{data};
+		auto source = read_string(path);
 		if (stage == GL_NONE)
 			stage = to_stage(path);
 
-		return shader(std::string(begin, {}), stage, path.filename().string());
+		return shader(source, stage, path.filename().string());
 	}
 
 	shader::shader(const std::string& src, GLenum stage, const std::string& from)
