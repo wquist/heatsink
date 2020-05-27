@@ -2,6 +2,7 @@
 
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/format.hpp>
+#include <heatsink/traits/memory.hpp>
 
 namespace heatsink::gl {
 	pixel_format::pixel_format(GLenum format, GLenum type, bool reverse)
@@ -35,5 +36,15 @@ namespace heatsink::gl {
 
 	GLenum pixel_format::get_datatype() const {
 		return m_datatype;
+	}
+
+	std::size_t pixel_format::get_size() const {
+		auto datasize = size_of(m_datatype);
+		assert(datasize != 0);
+
+		if (is_packed(m_datatype))
+			return datasize;
+		else
+			return datasize * format_traits::extent(m_format);
 	}
 }
