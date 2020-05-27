@@ -27,11 +27,17 @@ namespace heatsink {
 
 	namespace gl {
 		/**
-		* Calculate the equivalent number of bytes an OpenGL data type occupies
-		* in program space. This is the same as calling `sizeof()` on the
-		* corresponding C data type.
-		*/
+		 * Calculate the equivalent number of bytes an OpenGL data type occupies
+		 * in program space. This is the same as calling `sizeof()` on the
+		 * corresponding C data type.
+		 */
 		constexpr std::size_t size_of(GLenum);
+		/**
+		 * Determine whether the given OpenGL data type is "packed"; that is,
+		 * whether it represents multiple values within a single program-space
+		 * value (such as `GL_UNSIGNED_INT_24_8` representing two channels).
+		 */
+		constexpr bool is_packed(GLenum);
 	}
 }
 
@@ -85,6 +91,30 @@ namespace heatsink {
 			case GL_FLOAT_32_UNSIGNED_INT_24_8_REV: return sizeof(GLfloat) + sizeof(GLint);
 
 			default: return 0;
+		}
+
+		constexpr bool gl::is_packed(GLenum e) {
+			switch (e) {
+				case GL_UNSIGNED_BYTE_3_3_2:
+				case GL_UNSIGNED_BYTE_2_3_3_REV:
+				case GL_UNSIGNED_SHORT_5_6_5:
+				case GL_UNSIGNED_SHORT_5_6_5_REV:
+				case GL_UNSIGNED_SHORT_4_4_4_4:
+				case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+				case GL_UNSIGNED_SHORT_5_5_5_1:
+				case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+				case GL_UNSIGNED_INT_24_8:
+				case GL_UNSIGNED_INT_10F_11F_11F_REV:
+				case GL_UNSIGNED_INT_8_8_8_8:
+				case GL_UNSIGNED_INT_8_8_8_8_REV:
+				case GL_UNSIGNED_INT_10_10_10_2:
+				case GL_UNSIGNED_INT_2_10_10_10_REV:
+				case GL_UNSIGNED_INT_5_9_9_9_REV:
+				case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
+					return true;
+
+				default: return false;
+			}
 		}
 	}
 }

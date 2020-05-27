@@ -24,13 +24,6 @@ namespace heatsink::gl {
 		 * example, `GL_RGB8` is an 8 bits per channel UNORM format.
 		 */
 		static constexpr bool is_sized(GLenum);
-		/**
-		 * Check if the given image format is "packed". This means that the
-		 * components of the enum are all represented within a single datatype.
-		 * This means that the total pixel size is not (extent * sizeof(type)),
-		 * but simply sizeof(type).
-		 */
-		static constexpr bool is_packed(GLenum);
 
 		/**
 		 * Calculate the most appropriate type enum for an OpenGL image format.
@@ -55,12 +48,9 @@ namespace heatsink::gl {
 		static constexpr GLenum remove_size(GLenum);
 		/**
 		 * Calculate the reversed format for the given enumeration. Note that
-		 * this method also takes a datatype parameter; in some cases, a
-		 * specific format may instead be reversible by using a `_REV` datatype
-		 * (leaving the actual format as-is). This takes priority over any
-		 * format transformation that would normally take place. Also note that
-		 * the result is split into format and datatype, as all reversed formats
-		 * are unsized.
+		 * this method returns a pair of enumeration values; formats that cannot
+		 * be reversed can sometimes have their datatype reversed instead. Since
+		 * all reversed types are inherently unsized, both are be returned.
 		 */
 		static constexpr std::pair<GLenum, GLenum> reverse(GLenum);
 
@@ -75,13 +65,14 @@ namespace heatsink::gl {
 		return (underlying_datatype(e) != GL_NONE);
 	}
 
-	constexpr bool format_traits::is_packed(GLenum e) {
+	constexpr bool format_traits::is_packed(GLenum e, GLenum datatype) {
 		// Handle all formats by comparing only the resulting type. If it is
 		// "normal" (int, char, etc.), it is not packed since OpenGL represents
 		// the packed datatypes with special enumeration values.
-		e = underlying_datatype(e);
-		if (e == GL_NONE)
-			return false;
+		if (datatype == GL_NONE)
+			datatype = underlying_datatype(e);
+		if (datatype == GL_NONE)
+			return 0;
 
 		switch (e) {
 			case GL_BYTE:
