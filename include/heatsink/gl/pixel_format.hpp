@@ -26,13 +26,6 @@ namespace heatsink::gl {
 
 	public:
 		/**
-		 * Create a pixel format from the given base format and type. No
-		 * deduction occurs here; the values are used within the class as-is
-		 * (unless reverse is true). If a sized format is given, it will be
-		 * converted to its unsized equivalent so the type can be overriden.
-		 */
-		pixel_format(GLenum format, GLenum type, bool reverse = false);
-		/**
 		 * Create a pixel format from the given internal format. This may be the
 		 * format a texture object was created with, or a simple format
 		 * specifier. The data type chosen will be the closest match to the
@@ -41,6 +34,12 @@ namespace heatsink::gl {
 		 * disk is laid out with the blue channel first, i.e., `BGR` or `BGRA`.
 		 */
 		pixel_format(GLenum image_format, bool reverse = false);
+
+	private:
+		// Create a pixel format from the given base format and type. No
+		// deduction occurs here; the values are used within the class as-is
+		// (unless reverse is true).
+		pixel_format(GLenum format, GLenum type, bool reverse = false);
 
 	public:
 		/**
