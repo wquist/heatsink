@@ -92,29 +92,29 @@ namespace heatsink {
 
 			default: return 0;
 		}
+	}
 
-		constexpr bool gl::is_packed(GLenum e) {
-			switch (e) {
-				case GL_UNSIGNED_BYTE_3_3_2:
-				case GL_UNSIGNED_BYTE_2_3_3_REV:
-				case GL_UNSIGNED_SHORT_5_6_5:
-				case GL_UNSIGNED_SHORT_5_6_5_REV:
-				case GL_UNSIGNED_SHORT_4_4_4_4:
-				case GL_UNSIGNED_SHORT_4_4_4_4_REV:
-				case GL_UNSIGNED_SHORT_5_5_5_1:
-				case GL_UNSIGNED_SHORT_1_5_5_5_REV:
-				case GL_UNSIGNED_INT_24_8:
-				case GL_UNSIGNED_INT_10F_11F_11F_REV:
-				case GL_UNSIGNED_INT_8_8_8_8:
-				case GL_UNSIGNED_INT_8_8_8_8_REV:
-				case GL_UNSIGNED_INT_10_10_10_2:
-				case GL_UNSIGNED_INT_2_10_10_10_REV:
-				case GL_UNSIGNED_INT_5_9_9_9_REV:
-				case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
-					return true;
+	constexpr bool gl::is_packed(GLenum e) {
+		switch (e) {
+			case GL_UNSIGNED_BYTE_3_3_2:
+			case GL_UNSIGNED_BYTE_2_3_3_REV:
+			case GL_UNSIGNED_SHORT_5_6_5:
+			case GL_UNSIGNED_SHORT_5_6_5_REV:
+			case GL_UNSIGNED_SHORT_4_4_4_4:
+			case GL_UNSIGNED_SHORT_4_4_4_4_REV:
+			case GL_UNSIGNED_SHORT_5_5_5_1:
+			case GL_UNSIGNED_SHORT_1_5_5_5_REV:
+			case GL_UNSIGNED_INT_24_8:
+			case GL_UNSIGNED_INT_10F_11F_11F_REV:
+			case GL_UNSIGNED_INT_8_8_8_8:
+			case GL_UNSIGNED_INT_8_8_8_8_REV:
+			case GL_UNSIGNED_INT_10_10_10_2:
+			case GL_UNSIGNED_INT_2_10_10_10_REV:
+			case GL_UNSIGNED_INT_5_9_9_9_REV:
+			case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
+				return true;
 
-				default: return false;
-			}
+			default: return false;
 		}
 	}
 }

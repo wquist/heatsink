@@ -65,30 +65,6 @@ namespace heatsink::gl {
 		return (underlying_datatype(e) != GL_NONE);
 	}
 
-	constexpr bool format_traits::is_packed(GLenum e, GLenum datatype) {
-		// Handle all formats by comparing only the resulting type. If it is
-		// "normal" (int, char, etc.), it is not packed since OpenGL represents
-		// the packed datatypes with special enumeration values.
-		if (datatype == GL_NONE)
-			datatype = underlying_datatype(e);
-		if (datatype == GL_NONE)
-			return 0;
-
-		switch (e) {
-			case GL_BYTE:
-			case GL_UNSIGNED_BYTE:
-			case GL_SHORT:
-			case GL_UNSIGNED_SHORT:
-			case GL_HALF_FLOAT:
-			case GL_INT:
-			case GL_UNSIGNED_INT:
-			case GL_FLOAT:
-				return false;
-
-			default: return true;
-		}
-	}
-
 	constexpr GLenum format_traits::underlying_datatype(GLenum e) {
 		switch (e) {
 			case GL_R8:
