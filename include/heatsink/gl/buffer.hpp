@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 #include <iterator>
-#include <span>
+#include <type_traits>
 
 #include <heatsink/gl/object.hpp>
 #include <heatsink/platform/gl.hpp>
@@ -183,7 +183,7 @@ namespace heatsink::gl {
 
 	protected:
 		// Allow subclass access to the base "offset" managed by this buffer.
-		std::size_t get_base_offset() const;
+		std::size_t get_offset() const;
 
 	private:
 		// Whether the buffer was created with `glBufferStorage()`.
@@ -192,5 +192,216 @@ namespace heatsink::gl {
 		std::size_t m_base;
 		// The size in bytes of the buffer.
 		std::size_t m_size;
+	};
+
+	template<bool Const>
+	class buffer::basic_view : protected buffer {
+	private:
+		// Conditionally choose the constness to use in both view types.
+		using reference = std::conditional_t<Const, const buffer&, buffer&>;
+
+	public:
+		/**
+		 * Create a new view from the entire range of the given buffer. This
+		 * allows classes that accept both buffers and views to do so in the
+		 * same overload.
+		 */
+		basic_view(reference);
+		/**
+		 * Create a new view from the specified buffer, using the given range.
+		 * Note that the offset/size do not have to be aligned to the boundaries
+		 * of the data type that was used to set/update it; the base `buffer`
+		 * class works solely on byte boundaries.
+		 */
+		basic_view(reference, std::size_t offset, std::size_t size);
+		/**
+		 * Create a new view from the specified view, using the given range. See
+		 * the above overload.
+		 */
+		basic_view(const basic_view&, std::size_t offset, std::size_t size);
+
+		// Adjust RAII behavior for a view; it should be copiable/non-owning.
+		basic_view(const basic_view&) = default;
+		basic_view(basic_view&&) noexcept;
+		~basic_view();
+
+		basic_view& operator =(const basic_view&) = default;
+		basic_view& operator =(basic_view&&) noexcept;
+
+	public:
+		/**
+		 * Retrieve the offset between the start of the owning buffer and the
+		 * first byte represented in this view.
+		 */
+		std::size_t get_offset() const;
+
+		/**
+		 * Bind the name of the view as the active buffer, for its target. Note
+		 * that this still binds the entire range of the parent data; it is up
+		 * to the methods using it to only use the range specified by this view.
+		 */
+		using buffer::bind;
+
+		/**
+		 * A view implements a subset of the `buffer` interface. All methods
+		 * function exactly the same as they would on the buffer, only on the
+		 * range specified.
+		 */
+		using buffer::is_valid;
+		using buffer::is_immutable;
+		using buffer::is_empty;
+		
+		using buffer::get_target;
+		using buffer::get_size;
+	};
+
+	/**
+	 * See forward declaration in `buffer`.
+	 */
+	class buffer::const_view : public buffer::basic_view<true> {
+	public:
+		// Inherit all constructors from `basic_view`.
+		using basic_view::basic_view;
+
+	public:
+		/**
+		 * The `make_view()` method cannot be brought in from `buffer`, as only
+		 * the const overload is valid within a const view.
+		 */
+		const_view make_view(std::size_t offset, std::size_t size) const;
+	};
+
+	/**
+	 * See forward declaration in `buffer`.
+	 */
+	class buffer::view : public buffer::view<false> {
+	public:
+		// Inherit all constructors from `basic_view`.
+		using basic_view::basic_view;
+
+	public:
+		/**
+		 * In addition to the parent methods, a mutable view implements some
+		 * additional state-changing methods from `buffer`.
+		 */
+		using buffer::update;
+		using buffer::clear;
+		using buffer::invalidate;
+
+		using buffer::rebind;
+		using buffer::make_view;
+		using buffer::map;
+	};
+
+	/**
+	 * See forward declaration in `buffer`. Note that this extends from `view`
+	 * instead of `buffer` as it simplifies creating a mapping from either.
+	 */
+	template<class T>
+	class buffer::mapping : private basic_view<true> {
+	public:
+		/**
+		 * Provide STL-like type aliases for the `Container` concept.
+		 */
+		using value_type      = T;
+		using reference       = T&;
+		using const_reference = const T&;
+		using iterator        = T*;
+		using const_iterator  = const T*;
+		using difference_type = std::ptrdiff_t;
+		using size_type       = std::size_t;
+
+	public:
+		/**
+		 * Create a new mapping out of the specified constant buffer view. This
+		 * implicitly specifies `GL_MAP_READ_BIT` for the access. Note that a
+		 * mapping created from a constant view may not be writable.
+		 */
+		mapping(const const_view&, GLbitfield access);
+		/**
+		 * Create a new mutable mapping from the specified buffer view. The view
+		 * may be readable, writable, or both. Note, though, that a read-only
+		 * mapping has exception rules as if created from a `const_view`.
+		 */
+		mapping(const view&, GLbitfield access);
+
+		// A mapping must manage the lifetime of its data; this means that it
+		// cannot be copied, but can be moved.
+		mapping(const mapping&) = delete;
+		mapping(mapping&&) noexcept;
+		~mapping();
+
+		mapping& operator =(const mapping&) = delete;
+		mapping& operator =(mapping&&) noexcept;
+
+	private:
+		// Allow constant and mutable views to be constructed the same way.
+		mapping(const buffer&, GLbitfield access);
+
+	public:
+		/**
+		 * Synchronize a data write in client memory with OpenGL/GPU memory. The
+		 * buffer must have been mapped as explicitly flushable, else this
+		 * method will raise an assertion.
+		 */
+		void flush() const;
+
+		/**
+		 * Check if the mapping instance is valid. Separate from the buffer, a
+		 * mapping can be invalid from a thrown exception during construction.
+		 * Calling any member functions on an invalid mapping is undefined
+		 * behavior, although it is likely to raise an assertion.
+		 */
+		bool is_valid() const;
+
+		/**
+		 * Retrieve an iterator to the front and back of the mapping, STL style.
+		 * If the mapping was not created with read access, these methods will
+		 * raise an exception.
+		 */
+		const_iterator begin() const;
+		const_iterator end() const;
+		/**
+		 * Retrieve a mutable iterator to the front and back of the mapping. If
+		 * the mapping was not created with write access, these methods will
+		 * raise an exception.
+		 */
+		iterator begin();
+		iterator end();
+
+		/**
+		 * Override the `view` size methods to provide a variant that takes into
+		 * account the mapping data type. That is, this will return
+		 * `view::size() / sizeof(T)`.
+		 */
+		std::size_t get_size() const;
+
+		/**
+		 * Retrieve a raw pointer to the start of the mapped data. This method
+		 * has the same exception rules as the `begin()`/`end()` overloads.
+		 */
+		const T* get_data() const;
+		/**
+		 * Retrieve a mutable pointer to the mapped data. See above overload.
+		 */
+		T* get_data();
+
+		/**
+		 * Calculate the size of the view in terms of the mapping data type.
+		 * This provides an STL-consistent variant of `get_size()`.
+		 */
+		std::size_t size() const;
+		/**
+		 * Retrieve a pointer to the mapping data. This provides STL-consistent
+		 * variants of `get_data()`.
+		 */
+		const T* data() const;
+		T* data();
+
+	private:
+		// The data pointer returned by the OpenGL map.
+		T* m_data;
+		// The access parameters, for checking read/write validity.
+		GLbitfield m_access;
 	};
 }
