@@ -1,11 +1,16 @@
 #pragma once
 
+#include <cassert>
 #include <cstdlib>
 #include <iterator>
 #include <type_traits>
 
+#include <heatsink/error/exception.hpp>
 #include <heatsink/gl/object.hpp>
+#include <heatsink/gl/pixel_format.hpp>
 #include <heatsink/platform/gl.hpp>
+#include <heatsink/traits/format.hpp>
+#include <heatsink/traits/memory.hpp>
 
 namespace heatsink::gl {
 	/**
@@ -222,11 +227,9 @@ namespace heatsink::gl {
 
 		// Adjust RAII behavior for a view; it should be copiable/non-owning.
 		basic_view(const basic_view&) = default;
-		basic_view(basic_view&&) noexcept;
 		~basic_view();
 
 		basic_view& operator =(const basic_view&) = default;
-		basic_view& operator =(basic_view&&) noexcept;
 
 	public:
 		/**
@@ -274,7 +277,7 @@ namespace heatsink::gl {
 	/**
 	 * See forward declaration in `buffer`.
 	 */
-	class buffer::view : public buffer::view<false> {
+	class buffer::view : public buffer::basic_view<false> {
 	public:
 		// Inherit all constructors from `basic_view`.
 		using basic_view::basic_view;
@@ -404,4 +407,245 @@ namespace heatsink::gl {
 		// The access parameters, for checking read/write validity.
 		GLbitfield m_access;
 	};
+}
+
+namespace heatsink::gl {
+	template<std::contiguous_iterator Iterator>
+	buffer buffer::immutable(GLenum mode, Iterator begin, Iterator end, GLbitfield access) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(std::is_standard_layout_v<T>);
+
+		auto size = std::distance(begin, end) * sizeof(T);
+		assert(size > 0);
+
+		return buffer(mode, size, address_of(*begin), access);
+	}
+
+	template<std::contiguous_iterator Iterator>
+	buffer::buffer(GLenum mode, Iterator begin, Iterator end, GLenum usage)
+	: buffer(mode) {
+		this->set(begin, end, usage);
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void buffer::set(Iterator begin, Iterator end, GLenum usage) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(std::is_standard_layout_v<T>);
+
+		assert(this->is_valid() && !this->is_immutable());
+		assert(m_base == 0);
+
+		m_size = std::distance(begin, end) * sizeof(T);
+		assert(m_size > 0);
+
+		this->bind();
+		glBufferData(this->get_target(), m_size, address_of(*begin), usage);
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void buffer::update(Iterator begin, Iterator end) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(std::is_standard_layout_v<T>);
+
+		assert(this->is_valid() && !this->is_empty());
+		assert(std::distance(begin, end) * sizeof(T) == m_size);
+
+		this->bind();
+		glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void buffer::clear(GLenum internal_format, Iterator begin, Iterator end, pixel_format format) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(std::is_standard_layout_v<T>);
+
+		assert(this->is_valid() && !this->is_empty());
+		assert(format_traits::is_sized(internal_format));
+		assert(std::distance(begin, end) * sizeof(T) == format.get_size());
+
+		auto itype = format_traits::underlying_datatype(internal_format);
+		auto isize = size_of(datatype);
+
+		auto pixel_size = (is_packed(itype)) ? isize : isize * format_traits::extent(internal_format);
+		assert(!(m_base % pixel_size) && !(m_size % pixel_size));
+
+		auto pfmt  = format.get();
+		auto ptype = format.get_datatype();
+
+		this->bind();
+		glClearBufferSubData(this->get_target(), internal_format, m_base, m_size, pfmt, ptype, address_of(*begin));
+	}
+
+	template<tensor T>
+	void buffer::clear(GLenum internal_format, const T& value, pixel_format format) {
+		auto* data = &value;
+		this->clear(internal_format, data, data + 1, format);
+	}
+
+	template<class T>
+	buffer::mapping<T> buffer::map(GLbitfield access) {
+		assert(this->is_valid() && !this->is_empty());
+		return mapping<T>(*this, access);
+	}
+
+	template<bool Const>
+	buffer::basic_view<Const>::basic_view(reference other)
+	: buffer(other, 0, other.get_size()) {}
+
+	template<bool Const>
+	buffer::basic_view<Const>::basic_view(reference other, std::size_t offset, std::size_t size)
+	: buffer(other, offset, size) {}
+
+	template<bool Const>
+	buffer::basic_view<Const>::basic_view(const basic_view& other, std::size_t offset, std::size_t size)
+	: buffer(other, offset, size) {}
+
+	template<bool Const>
+	buffer::basic_view<Const>::~basic_view() {
+		// This will invalidate the referenced name before it can be deleted by
+		// the parent buffer constructor.
+		this->reset();
+	}
+
+	template<bool Const>
+	std::size_t buffer::basic_view<Const>::get_offset() const {
+		assert(this->is_valid());
+		return buffer::get_offset();
+	}
+
+	template<class T>
+	buffer::mapping<T>::mapping(const const_view& other, GLbitfield access)
+	: mapping<T>((const buffer&)other, access | GL_MAP_READ_BIT) {
+		assert(!(m_access & GL_MAP_WRITE_BIT));
+	}
+
+	template<class T>
+	buffer::mapping<T>::mapping(const view& other, GLbitfield access)
+	: mapping<T>((const buffer&)other, access | GL_MAP_WRITE_BIT) {}
+
+	template<class T>
+	buffer::mapping<T>::mapping(mapping&& other) noexcept
+	: basic_view(std::move(other)), m_data{other.m_data} {
+		other.m_data = nullptr;
+	}
+
+	template<class T>
+	buffer::mapping<T>::~mapping() {
+		if (m_data) {
+			this->bind();
+			glUnmapBuffer(this->get_target());
+		}
+	}
+
+	template<class T>
+	buffer::mapping<T>& buffer::mapping<T>::operator =(mapping&& other) noexcept {
+		basic_view(std::move(other));
+		if (m_data) {
+			this->bind();
+			glUnmapBuffer(this->get_target());
+		}
+
+		m_data = other.m_data;
+
+		other.m_data = nullptr;
+		return *this;
+	}
+
+	template<class T>
+	buffer::mapping<T>::mapping(const buffer& other, GLbitfield access)
+	: basic_view<true>(other), m_access{access} {
+		// The view should be aligned relative to the size of the mapping type.
+		auto offset = this->get_offset();
+		assert(!(offset % sizeof(T)) && !(basic_view::get_size() % sizeof(T)));
+
+		this->bind();
+		m_data = glMapBufferRange(this->get_target(), offset, basic_view::get_size(), access);
+		
+		// This likely occurs because a view of the buffer is already mapped.
+		if (!m_data)
+			throw exception("gl::buffer::mapping", "could not map buffer data.");
+	}
+
+	template<class T>
+	void buffer::mapping<T>::flush() const {
+		assert(this->is_valid());
+
+		this->bind();
+		// Use `view::get_size()`; the mapping `size()` is no longer in bytes.
+		glFlushMappedBufferRange(this->get_target(), this->get_offset(), basic_view::get_size());
+	}
+
+	template<class T>
+	bool buffer::mapping<T>::is_valid() const {
+		return (basic_view::is_valid() && m_data != nullptr);
+	}
+
+	template<class T>
+	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::begin() const {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_READ_BIT);
+
+		return m_data;
+	}
+
+	template<class T>
+	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::end() const {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_READ_BIT);
+		
+		return m_data;
+	}
+
+	template<class T>
+	typename buffer::mapping<T>::iterator buffer::mapping<T>::begin() {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_WRITE_BIT);
+
+		return m_data;
+	}
+
+	template<class T>
+	typename buffer::mapping<T>::iterator buffer::mapping<T>::end() {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_WRITE_BIT);
+
+		return (m_data + this->get_size());
+	}
+
+	template<class T>
+	std::size_t buffer::mapping<T>::get_size() const {
+		assert(this->is_valid());
+		return (basic_view::get_size() / sizeof(T));
+	}
+
+	template<class T>
+	std::size_t buffer::mapping<T>::size() const {
+		return this->get_size();
+	}
+
+	template<class T>
+	const T* buffer::mapping<T>::get_data() const {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_READ_BIT);
+
+		return m_data;
+	}
+
+	template<class T>
+	T* buffer::mapping<T>::get_data() {
+		assert(this->is_valid());
+		assert(m_access & GL_MAP_WRITE_BIT);
+
+		return m_data;
+	}
+
+	template<class T>
+	const T* buffer::mapping<T>::data() const {
+		return this->get_data();
+	}
+
+	template<class T>
+	T* buffer::mapping<T>::data() {
+		return this->get_data();
+	}
 }

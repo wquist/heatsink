@@ -1,5 +1,7 @@
 #include <heatsink/gl/pixel_format.hpp>
 
+#include <cassert>
+
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/format.hpp>
 #include <heatsink/traits/memory.hpp>
@@ -42,9 +44,6 @@ namespace heatsink::gl {
 		auto datasize = size_of(m_datatype);
 		assert(datasize != 0);
 
-		if (is_packed(m_datatype))
-			return datasize;
-		else
-			return datasize * format_traits::extent(m_format);
+		return (is_packed(m_datatype)) ? datasize : datasize * format_traits::extent(m_format);
 	}
 }
