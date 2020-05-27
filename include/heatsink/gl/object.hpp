@@ -62,9 +62,9 @@ namespace heatsink::gl {
 		 * arguments are needed, while others will require an image unit value.
 		 */
 		void bind() const
-			requires (name::has_bind_unit == false);
+			requires (name::has_image_unit == false);
 		void bind(std::size_t unit) const
-			requires (name::has_bind_unit == true);
+			requires (name::has_image_unit == true);
 
 		/**
 		 * Check if the object instance is valid. An object should be valid
@@ -174,7 +174,7 @@ namespace heatsink::gl {
 	: detail::object_target_mixin<V>(mode), m_name{0} {}
 
 	template<GLenum V>
-	void object<V>::bind() const requires (name::has_bind_unit == false) {
+	void object<V>::bind() const requires (name::has_image_unit == false) {
 		assert(this->is_valid());
 
 		// When binding, use the mixin target accessor in case we are binding
@@ -186,7 +186,7 @@ namespace heatsink::gl {
 	}
 
 	template<GLenum V>
-	void object<V>::bind(std::size_t unit) const requires (name::has_bind_unit == true) {
+	void object<V>::bind(std::size_t unit) const requires (name::has_image_unit == true) {
 		assert(this->is_valid());
 
 		// When binding, use the mixin target accessor in case we are binding
@@ -199,7 +199,7 @@ namespace heatsink::gl {
 
 	template<GLenum V>
 	bool object<V>::is_valid() const {
-		auto is_default = (name::is_default_constructible && name == 0);
+		auto is_default = (name::is_default_constructible && m_name == 0);
 		return (m_name != 0 || is_default);
 	}
 
