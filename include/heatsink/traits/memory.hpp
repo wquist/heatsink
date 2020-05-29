@@ -22,7 +22,7 @@ namespace heatsink {
 	 * is functionally equivalent to the `offsetof()` macro, but functions on
 	 * pointer-to-member values instead of taking the member name directly.
 	 */
-	template<class T, class Struct> requires (std::is_standard_layout_v<Struct>)
+	template<class T, standard_layout Struct>
 	constexpr std::size_t offset_of(T Struct::*member);
 
 	namespace gl {
@@ -48,7 +48,7 @@ namespace heatsink {
 		return reinterpret_cast<const element_type*>(std::addressof(t));
 	}
 
-	template<class T, class Struct> requires (std::is_standard_layout_v<Struct>)
+	template<class T, standard_layout Struct>
 	constexpr std::size_t offset_of(T Struct::*member) {
 		// Launder a size-equivalent byte array to get valid pointer values.
 		// - Casting `nullptr` to access the member is undefined behavior.

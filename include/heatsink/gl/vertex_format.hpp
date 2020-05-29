@@ -49,7 +49,7 @@ namespace heatsink::gl {
 		 * types will be treated as vectors if their size can represent a
 		 * vector type, rather than a single value scalar array.
 		 */
-		template<tensor T, class Vertex>
+		template<tensor T, standard_layout Vertex>
 		vertex_format(T Vertex::*member, bool force_array = false);
 
 	public:

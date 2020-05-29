@@ -42,7 +42,7 @@ namespace heatsink::gl {
 		 * memory addresses rather than the "set" or "update" methods. Note that
 		 * like `view`, the lifetime of a mapping is dependent on its `buffer`.
 		 */
-		template<class T>
+		template<standard_layout T>
 		class mapping;
 
 	private:
@@ -155,7 +155,7 @@ namespace heatsink::gl {
 		 * A pointer to the data is made available in the specified type, or as
 		 * a `GLubyte`/`unsigned char` if none is provided.
 		 */
-		template<class T = GLubyte>
+		template<standard_layout T = GLubyte>
 		mapping<T> map(GLbitfield access);
 
 		/**
@@ -300,7 +300,7 @@ namespace heatsink::gl {
 	 * See forward declaration in `buffer`. Note that this extends from `view`
 	 * instead of `buffer` as it simplifies creating a mapping from either.
 	 */
-	template<class T>
+	template<standard_layout T>
 	class buffer::mapping : private basic_view<true> {
 	public:
 		/**
@@ -482,7 +482,7 @@ namespace heatsink::gl {
 		this->clear(internal_format, data, data + 1, format);
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T> buffer::map(GLbitfield access) {
 		assert(this->is_valid() && !this->is_empty());
 		return mapping<T>(*this, access);
@@ -513,23 +513,23 @@ namespace heatsink::gl {
 		return buffer::get_offset();
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>::mapping(const const_view& other, GLbitfield access)
 	: mapping<T>((const buffer&)other, access | GL_MAP_READ_BIT) {
 		assert(!(m_access & GL_MAP_WRITE_BIT));
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>::mapping(const view& other, GLbitfield access)
 	: mapping<T>((const buffer&)other, access | GL_MAP_WRITE_BIT) {}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>::mapping(mapping&& other) noexcept
 	: basic_view(std::move(other)), m_data{other.m_data} {
 		other.m_data = nullptr;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>::~mapping() {
 		if (m_data) {
 			this->bind();
@@ -537,7 +537,7 @@ namespace heatsink::gl {
 		}
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>& buffer::mapping<T>::operator =(mapping&& other) noexcept {
 		basic_view(std::move(other));
 		if (m_data) {
@@ -551,7 +551,7 @@ namespace heatsink::gl {
 		return *this;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	buffer::mapping<T>::mapping(const buffer& other, GLbitfield access)
 	: basic_view<true>(other), m_access{access} {
 		// The view should be aligned relative to the size of the mapping type.
@@ -566,7 +566,7 @@ namespace heatsink::gl {
 			throw exception("gl::buffer::mapping", "could not map buffer data.");
 	}
 
-	template<class T>
+	template<standard_layout T>
 	void buffer::mapping<T>::flush() const {
 		assert(this->is_valid());
 
@@ -575,12 +575,12 @@ namespace heatsink::gl {
 		glFlushMappedBufferRange(this->get_target(), this->get_offset(), basic_view::get_size());
 	}
 
-	template<class T>
+	template<standard_layout T>
 	bool buffer::mapping<T>::is_valid() const {
 		return (basic_view::is_valid() && m_data != nullptr);
 	}
 
-	template<class T>
+	template<standard_layout T>
 	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::begin() const {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_READ_BIT);
@@ -588,7 +588,7 @@ namespace heatsink::gl {
 		return m_data;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::end() const {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_READ_BIT);
@@ -596,7 +596,7 @@ namespace heatsink::gl {
 		return m_data;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::begin() {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_WRITE_BIT);
@@ -604,7 +604,7 @@ namespace heatsink::gl {
 		return m_data;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::end() {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_WRITE_BIT);
@@ -612,18 +612,18 @@ namespace heatsink::gl {
 		return (m_data + this->get_size());
 	}
 
-	template<class T>
+	template<standard_layout T>
 	std::size_t buffer::mapping<T>::get_size() const {
 		assert(this->is_valid());
 		return (basic_view::get_size() / sizeof(T));
 	}
 
-	template<class T>
+	template<standard_layout T>
 	std::size_t buffer::mapping<T>::size() const {
 		return this->get_size();
 	}
 
-	template<class T>
+	template<standard_layout T>
 	const T* buffer::mapping<T>::get_data() const {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_READ_BIT);
@@ -631,7 +631,7 @@ namespace heatsink::gl {
 		return m_data;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	T* buffer::mapping<T>::get_data() {
 		assert(this->is_valid());
 		assert(m_access & GL_MAP_WRITE_BIT);
@@ -639,12 +639,12 @@ namespace heatsink::gl {
 		return m_data;
 	}
 
-	template<class T>
+	template<standard_layout T>
 	const T* buffer::mapping<T>::data() const {
 		return this->get_data();
 	}
 
-	template<class T>
+	template<standard_layout T>
 	T* buffer::mapping<T>::data() {
 		return this->get_data();
 	}

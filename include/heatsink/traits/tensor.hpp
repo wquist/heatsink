@@ -4,6 +4,15 @@
 #include <type_traits>
 
 namespace heatsink {
+	/**
+	 * To ensure propery interop with the C-style memory consuming GL methods,
+	 * most types should be "standard layout" such that their bytes can be
+	 * copied properly. To the reduce the amount of times "requires 
+	 * (is_standard_layout)" must be typed, this concept is defined.
+	 */
+	template<class T>
+	concept standard_layout = std::is_standard_layout_v<T>;
+	
 	namespace detail {
 		// The result type from an invocation of `operator []`.
 		template<class T>
@@ -12,7 +21,7 @@ namespace heatsink {
 		// Check if this is a higher-level type in a mutidimensional type; that
 		// is, an array-like type whose elements are also tensors.
 		template<class T>
-		concept subscriptable = std::is_standard_layout_v<T> && !std::is_pointer_v<T> &&
+		concept subscriptable = standard_layout<T> && !std::is_pointer_v<T> &&
 			requires { typename subscript_t<T>; };
 	}
 
