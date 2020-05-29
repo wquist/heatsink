@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include <heatsink/traits/memory.hpp>
+
 namespace heatsink::gl {
 	vertex_format::vertex_format(GLenum datatype, std::size_t components, std::size_t n, packing pack)
 	: m_enum{datatype}, m_components{components}, m_indices{n}, m_packing{pack} {

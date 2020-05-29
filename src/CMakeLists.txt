@@ -14,6 +14,7 @@ add_library(heatsink
 	"${SRC}/gl_pixel_format.cpp"
 	"${SRC}/gl_program.cpp"
 	"${SRC}/gl_shader.cpp"
+	"${SRC}/gl_vertex_format.cpp"
 	"${SRC}/platform_context.cpp"
 	"${SRC}/platform_window.cpp"
 	"${SRC}/traits_name.cpp"

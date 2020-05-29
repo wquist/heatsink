@@ -88,7 +88,7 @@ namespace heatsink::gl {
 
 namespace heatsink::gl {
 	template<tensor T, standard_layout Vertex>
-	vertex_format(T Vertex::*member, bool force_array)
+	vertex_format::vertex_format(T Vertex::*member, bool force_array)
 	: m_packing{.stride = sizeof(Vertex), .offset = offset_of(member)} {
 		// Find the inner type and dimensions of the given member, since a
 		// vertex is always represented as a scalar type (int, float, etc.).
