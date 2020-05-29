@@ -53,7 +53,7 @@ namespace heatsink {
 		 * `debug` will set the context flag and install message handlers if
 		 * appropriate for the version.
 		 */
-		context(version = {3,3}, profile = profile::any, bool debug = true);
+		context(version = {.major = 3, .minor = 3}, profile = profile::any, bool debug = true);
 		/**
 		 * Retrieve version/profile information from the given window. Using
 		 * this constructor also allows contexts to be shared between windows.
