@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdlib>
+#include <type_traits>
 
 #include <heatsink/platform/gl.hpp>
+#include <heatsink/traits/enum.hpp>
 #include <heatsink/traits/tensor.hpp>
 
 namespace heatsink::gl {
@@ -82,4 +84,53 @@ namespace heatsink::gl {
 		// The field packing within a larger structure.
 		packing m_packing;
 	};
+}
+
+namespace heatsink::gl {
+	template<tensor T, standard_layout Vertex>
+	vertex_format(T Vertex::*member, bool force_array)
+	: m_packing{.stride = sizeof(Vertex), .offset = offset_of(member)} {
+		// Find the inner type and dimensions of the given member, since a
+		// vertex is always represented as a scalar type (int, float, etc.).
+		using value_type = tensor_decay_t<T>;
+
+		constexpr auto value_rank = std::rank_v<value_type>;
+		// The format must be represented by either a scalar, a single-dimension
+		// array (which may be either a vector or a normal array), or a two-
+		// dimensional array represented an array of vector types.
+		static_assert(value_rank <= 2);
+
+		constexpr auto datatype = make_enum_v<std::remove_all_extents_t<value_type>>;
+		static_assert(datatype != GL_NONE);
+
+		m_enum = datatype;
+		switch (value_rank) {
+			case 2: {
+				// The "vector" dimension is the higher one. Assign to a
+				// `constexpr` since it cannot be compiler asserted otherwise.
+				constexpr auto components = std::extent_v<value_type, 1>;
+				static_assert(components <= 4);
+
+				m_components = components;
+				m_indices    = std::extent_v<value_type, 0>;
+				break;
+			}
+			case 1: {
+				m_components = std::extent_v<value_type>;
+				m_indices    = 1;
+
+				// If there is only one dimension, it could be either the
+				// "vector" or array dimension. The extent is coerced to a
+				// vector type if the array size is sufficiently small.
+				if (m_components > 4 || force_array)
+					std::swap(m_components, m_indices);
+
+				break;
+			}
+			default: {
+				m_components = 1;
+				m_indices    = 1;
+			}
+		}
+	}
 }

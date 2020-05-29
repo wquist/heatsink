@@ -128,7 +128,7 @@ namespace heatsink {
 	// Otherwise, its rank is equal to the number of tensor dimensions below it.
 	template<detail::tensor_array T>
 	struct tensor_rank<T> : std::integral_constant<std::size_t,
-		1u + tensor_rank<detail::subscript_t<T>>::value
+		1 + tensor_rank<detail::subscript_t<T>>::value
 	> {};
 
 	// A zero-dimensional tensor always has an extent of zero.
