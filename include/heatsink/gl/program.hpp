@@ -1,9 +1,11 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
+#include <heatsink/gl/attribute.hpp>
 #include <heatsink/gl/shader.hpp>
 #include <heatsink/platform/gl.hpp>
 
@@ -88,6 +90,9 @@ namespace heatsink::gl {
 	private:
 		// The OpenGL identifier for this program.
 		GLuint m_name;
+
+		// The introspected attribute names mapped to their values.
+		std::map<std::string, attribute> m_attributes;
 	};
 
 	/**

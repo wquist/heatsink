@@ -64,7 +64,12 @@ namespace heatsink::gl {
 
 	program::program(const std::vector<GLuint>& names, const std::string& from)
 	: m_name{glCreateProgram()} {
+		if (!m_name)
+			throw exception("gl::program", "could not allocate program.");
+
 		this->link(names, from);
+
+		m_attributes = attribute::from_program(*this);
 	}
 
 	void program::use() const {
