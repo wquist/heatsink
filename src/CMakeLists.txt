@@ -10,6 +10,7 @@ add_library(heatsink
 	"${SRC}/error_compile.cpp"
 	"${SRC}/error_debug.cpp"
 	"${SRC}/error_exception.cpp"
+	"${SRC}/gl_attribute.cpp"
 	"${SRC}/gl_buffer.cpp"
 	"${SRC}/gl_pixel_format.cpp"
 	"${SRC}/gl_program.cpp"
