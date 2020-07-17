@@ -91,3 +91,12 @@ namespace heatsink::gl {
 		std::size_t m_size;
 	};
 }
+
+namespace std {
+	// Implement a comparator for `attribute` so it can be used in the sorted
+	// standard library containers. An `attribute` is sorted on its location.
+	template<>
+	struct less<heatsink::gl::attribute> {
+		bool operator ()(const heatsink::gl::attribute&, const heatsink::gl::attribute&) const;
+	};
+}

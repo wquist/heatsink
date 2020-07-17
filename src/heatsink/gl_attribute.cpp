@@ -83,3 +83,11 @@ namespace heatsink::gl {
 		return m_size;
 	}
 }
+
+namespace std {
+	using attribute = heatsink::gl::attribute;
+
+	bool less<attribute>::operator ()(const attribute& lhs, const attribute& rhs) const {
+		return (lhs.get() < rhs.get());
+	}
+}
