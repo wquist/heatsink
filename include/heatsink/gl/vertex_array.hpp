@@ -63,5 +63,9 @@ namespace heatsink::gl {
 		 * Unset/reset the index buffer bind point for this vertex array.
 		 */
 		void set_elements(std::nullptr_t);
+
+	private:
+		// Combined attribute setter for the normalized and conversion variants.
+		void set_attribute(const attribute&, vertex_format, buffer::const_view, conversion*);
 	};
 }
