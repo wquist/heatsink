@@ -1,5 +1,6 @@
 #include <heatsink/gl/vertex_array.hpp>
 
+#include <heatsink/traits/memory.hpp>
 #include <heatsink/traits/name.hpp>
 
 namespace heatsink::gl {
@@ -43,11 +44,7 @@ namespace heatsink::gl {
 	}
 
 	void vertex_array::set_attribute(const attribute& a, vertex_format f, buffer::const_view v, conversion* c) {
-		// FIXME: handle multi-index attributes.
-		assert(f.get_index_count() == 1);
-
 		auto index   = a.get();
-		auto size    = f.get_component_count();
 		auto type    = f.get_datatype();
 		auto packing = f.get_packing();
 		auto offset  = v.get_offset() + packing.offset;
@@ -55,19 +52,34 @@ namespace heatsink::gl {
 		this->bind();
 		v.bind();
 
-		glEnableVertexAttribArray(index);
-		if (!c) {
-			glVertexAttribPointer(index, size, type, GL_TRUE, packing.stride, (GLvoid*)offset);
-		} else switch (*c) {
-			case conversion::integer:
-				glVertexAttribIPointer(index, size, type, packing.stride, (GLvoid*)offset);
-				break;
-			case conversion::floating_point:
-				glVertexAttribPointer(index, size, type, GL_FALSE, packing.stride, (GLvoid*)offset);
-				break;
-			case conversion::double_precision:
-				glVertexAttribLPointer(index, size, type, packing.stride, (GLvoid*)offset);
-				break;
+		for (auto i = 0; i != f.get_index_count(); ++i) {
+			auto size = f.get_component_count();
+			if (type == GL_DOUBLE) {
+				// In a `dvec3`, the components must be uploaded in two pieces;
+				// two in the first index, and one in the second.
+				if (size == 3)
+					size = (i % 2) ? 1 : 2;
+				// In a `dvec4`, the components can be uploaded evenly; 2 each.
+				else if (size == 4)
+					size = 2;
+			}
+
+			glEnableVertexAttribArray(index + i);
+			if (!c) {
+				glVertexAttribPointer(index + i, size, type, GL_TRUE, packing.stride, (GLvoid*)offset);
+			} else switch (*c) {
+				case conversion::integer:
+					glVertexAttribIPointer(index + i, size, type, packing.stride, (GLvoid*)offset);
+					break;
+				case conversion::floating_point:
+					glVertexAttribPointer(index + i, size, type, GL_FALSE, packing.stride, (GLvoid*)offset);
+					break;
+				case conversion::double_precision:
+					glVertexAttribLPointer(index + i, size, type, packing.stride, (GLvoid*)offset);
+					break;
+			}
+
+			offset += size_of(type) * size;
 		}
 	}
 }
