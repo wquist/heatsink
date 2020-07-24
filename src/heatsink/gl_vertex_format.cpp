@@ -6,16 +6,16 @@
 
 namespace heatsink::gl {
 	vertex_format::vertex_format(GLenum datatype, std::size_t components, std::size_t n, packing pack)
-	: m_enum{datatype}, m_components{components}, m_indices{n}, m_packing{pack} {
+	: m_datatype{datatype}, m_components{components}, m_indices{n}, m_packing{pack} {
 		// Calculate the format stride before modifying index/component values.
-		auto format_size = size_of(m_enum) * m_components * m_indices;
+		auto format_size = size_of(m_datatype) * m_components * m_indices;
 		if (m_packing.stride == 0)
 			m_packing.stride = format_size;
 
 		// If the format uses a double type, each component takes up twice as
 		// much space. Because an attribute slot can only hold four float
 		// values, only two double components can be represented per index.
-		if (m_enum == GL_DOUBLE)
+		if (m_datatype == GL_DOUBLE)
 			m_indices *= 2;
 
 		// Check some basic constraints to ensure the passed parameters and
@@ -29,7 +29,7 @@ namespace heatsink::gl {
 	: vertex_format(datatype, components, 1, pack) {}
 
 	GLenum vertex_format::get_datatype() const {
-		return m_enum;
+		return m_datatype;
 	}
 
 	std::size_t vertex_format::get_component_count() const {

@@ -82,7 +82,7 @@ namespace heatsink::gl {
 
 	private:
 		// The individual component type.
-		GLenum m_enum;
+		GLenum m_datatype;
 		// The extents of the component/index dimensions.
 		std::size_t m_components;
 		std::size_t m_indices;
@@ -109,7 +109,7 @@ namespace heatsink::gl {
 		constexpr auto datatype = make_enum_v<std::remove_all_extents_t<value_type>>;
 		static_assert(datatype != GL_NONE);
 
-		m_enum = datatype;
+		m_datatype = datatype;
 		switch (value_rank) {
 			case 2: {
 				// The "vector" dimension is the higher one. Assign to a
