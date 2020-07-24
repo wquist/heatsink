@@ -60,12 +60,18 @@ namespace heatsink::gl {
 		 */
 		GLenum get_datatype() const;
 		/**
-		 * Retrieve the component count of this format.
+		 * Retrieve the component count of this format. Note that this value is
+		 * not guaranteed to fit the given amount of values in a single
+		 * attribute index (see double datatypes). However, its value is not
+		 * modified like the index count, as the components may not fit evenly
+		 * across multiple indices (namely, the three-component `dvec`).
 		 */
 		std::size_t get_component_count() const;
 		/**
 		 * Retrieve the attribute count of this format (the number of attribute
-		 * indices needed to represent this format).
+		 * indices needed to represent this format). Note that this value may be
+		 * different from the initial array size passed to the constructor (see
+		 * double datatypes).
 		 */
 		std::size_t get_index_count() const;
 
