@@ -1,10 +1,12 @@
 #include <heatsink/gl/vertex_array.hpp>
 
+#include <cassert>
+
 #include <heatsink/traits/memory.hpp>
 #include <heatsink/traits/name.hpp>
 
 namespace heatsink::gl {
-	vertex_array()
+	vertex_array::vertex_array()
 	: object<GL_VERTEX_ARRAY>() {}
 
 	void vertex_array::set_attribute(const attribute& a, vertex_format f, buffer::const_view v) {
@@ -28,15 +30,15 @@ namespace heatsink::gl {
 		glDisableVertexAttribArray(a.get());
 	}
 
-	void vertex_array::set_elemenets(const buffer& b) {
+	void vertex_array::set_elements(const buffer& b) {
 		assert(this->is_valid());
 		assert(b.get_target() == GL_ELEMENT_ARRAY_BUFFER);
 
 		this->bind();
-		b->bind();
+		b.bind();
 	}
 
-	void vertex_array::set_elemenets(std::nullptr_t) {
+	void vertex_array::set_elements(std::nullptr_t) {
 		assert(this->is_valid());
 
 		this->bind();
@@ -53,7 +55,7 @@ namespace heatsink::gl {
 		v.bind();
 
 		for (auto i = 0; i != f.get_index_count(); ++i) {
-			auto size = f.get_component_count();
+			auto size = (GLint)f.get_component_count();
 			if (type == GL_DOUBLE) {
 				// In a `dvec3`, the components must be uploaded in two pieces;
 				// two in the first index, and one in the second.
@@ -66,16 +68,16 @@ namespace heatsink::gl {
 
 			glEnableVertexAttribArray(index + i);
 			if (!c) {
-				glVertexAttribPointer(index + i, size, type, GL_TRUE, packing.stride, (GLvoid*)offset);
+				glVertexAttribPointer(index + i, size, type, GL_TRUE, (GLsizei)packing.stride, (GLvoid*)offset);
 			} else switch (*c) {
 				case conversion::integer:
-					glVertexAttribIPointer(index + i, size, type, packing.stride, (GLvoid*)offset);
+					glVertexAttribIPointer(index + i, size, type, (GLsizei)packing.stride, (GLvoid*)offset);
 					break;
 				case conversion::floating_point:
-					glVertexAttribPointer(index + i, size, type, GL_FALSE, packing.stride, (GLvoid*)offset);
+					glVertexAttribPointer(index + i, size, type, GL_FALSE, (GLsizei)packing.stride, (GLvoid*)offset);
 					break;
 				case conversion::double_precision:
-					glVertexAttribLPointer(index + i, size, type, packing.stride, (GLvoid*)offset);
+					glVertexAttribLPointer(index + i, size, type, (GLsizei)packing.stride, (GLvoid*)offset);
 					break;
 			}
 

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <heatsink/gl/attribute.hpp>
+#include <heatsink/gl/buffer.hpp>
+#include <heatsink/gl/object.hpp>
 #include <heatsink/gl/vertex_format.hpp>
 #include <heatsink/platform/gl.hpp>
 
