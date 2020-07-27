@@ -83,6 +83,12 @@ namespace heatsink::gl {
 		 */
 		GLuint get() const;
 
+		/**
+		 * Retrieve the specified attribute, if it exists. The attribute must be
+		 * active and have been discovered through introspection.
+		 */
+		attribute get_attribute(const std::string&) const;
+
 	private:
 		// Link the specified `GL_SHADER` identifiers to this program.
 		void link(const std::vector<GLuint>& names, const std::string& from);

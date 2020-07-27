@@ -86,6 +86,15 @@ namespace heatsink::gl {
 		return m_name;
 	}
 
+	attribute program::get_attribute(const std::string& name) const {
+		if (!m_attributes.count(name)) {
+			std::cerr << "[heatsink::gl::prorgam] could not find attribute '" << name << "'." << std::endl;
+			throw exception("gl::program", "attribute does not exist.");
+		}
+
+		return m_attributes.at(name);
+	}
+
 	void program::link(const std::vector<GLuint>& names, const std::string& from) {
 		for (const auto& n : names)
 			glAttachShader(m_name, n);
