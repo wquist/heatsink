@@ -49,7 +49,7 @@ namespace heatsink::gl {
 	: m_name{name}, m_datatype{type}, m_size(size) {
 		m_location = glGetAttribLocation(p.get(), name.c_str());
 		if (m_location == -1) {
-			std::cerr << "unknown attribute name '" << name << "'." << std::endl;
+			std::cerr << "[heatsink::gl::attribute] unknown attribute name '" << name << "'." << std::endl;
 			throw exception("gl::attribute", "could not find attribute location.");
 		}
 	}
