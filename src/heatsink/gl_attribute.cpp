@@ -29,7 +29,7 @@ namespace heatsink::gl {
 			auto [type, size, namesize] = std::tuple<GLenum, GLint, GLsizei>{};
 			glGetActiveAttrib(p.get(), i, (GLsizei)std::ssize(buffer), &namesize, &size, &type, buffer.data());
 			
-			std::string name(buffer.data(), namesize - 1);
+			std::string name(buffer.data(), namesize);
 			if (!shader_traits::is_builtin(name))
 				results.emplace(name, attribute(p, name, type, size));
 		}
