@@ -1,5 +1,7 @@
 #include <heatsink/platform/context.hpp>
 
+#include <iostream>
+
 #include <glfw/glfw3.h>
 
 #include <heatsink/error/exception.hpp>
@@ -21,6 +23,7 @@ namespace {
 				return context::profile::any;
 
 			default:
+				std::cerr << "'" << glfw << "' is not a GLFW profile enumeration value." << std::endl;
 				throw exception("context::profile", "unknown GLFW profile enumeration.");
 		}
 	}

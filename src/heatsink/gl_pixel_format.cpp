@@ -1,6 +1,7 @@
 #include <heatsink/gl/pixel_format.hpp>
 
 #include <cassert>
+#include <iostream>
 
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/format.hpp>
@@ -11,8 +12,10 @@ namespace heatsink::gl {
 	: m_format{format_traits::remove_size(image_format)}, m_datatype{format_traits::underlying_datatype(image_format)} {
 		if (reverse) {
 			auto [f, t] = format_traits::reverse(image_format);
-			if (f == GL_NONE)
+			if (f == GL_NONE) {
+				std::cerr << "[heatsink::gl::pixel_format] image format '" << image_format << "' cannot be reversed." << std::endl;
 				throw exception("gl::pixel_format", "image format is not reversible.");
+			}
 
 			m_format   = f;
 			m_datatype = t;
@@ -25,8 +28,10 @@ namespace heatsink::gl {
 			// Note that the reversed data type is not used in this constructor;
 			// only the format itself may be reversed when specified separately.
 			auto [f, t] = format_traits::reverse(format);
-			if (f == GL_NONE)
+			if (f == GL_NONE) {
+				std::cerr << "[heatisnk::gl::pixel_format] format '" << format << "' cannot be reversed." << std::endl;
 				throw exception("gl::pixel_format", "format is not reversible.");
+			}
 
 			m_format = f;
 		}
