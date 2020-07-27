@@ -1,11 +1,19 @@
 #pragma once
 
+#include <cassert>
 #include <cstdlib>
+#include <iostream>
+#include <iterator>
 #include <map>
 #include <string>
 #include <type_traits>
 
+#include <heatsink/error/exception.hpp>
 #include <heatsink/platform/gl.hpp>
+#include <heatsink/traits/enum.hpp>
+#include <heatsink/traits/memory.hpp>
+#include <heatsink/traits/shader.hpp>
+#include <heatsink/traits/tensor.hpp>
 
 namespace heatsink::gl {
 	/**
@@ -187,4 +195,55 @@ namespace heatsink::gl {
 		using uniform::operator =;
 		using uniform::operator [];
 	};
+}
+
+namespace heatsink::gl {
+	template<tensor T> requires (std::is_array_v<T> == false)
+	void uniform::update(const T& t) {
+		assert(this->is_valid() && !this->is_array());
+
+		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
+		static_assert(datatype != GL_NONE);
+
+		if (!shader_traits::is_assignable(m_datatype, datatype)) {
+			std::cerr << "[heatsink::gl::uniform] cannot assign '" << datatype;
+			std::cerr << "' to '" << m_datatype << "'." << std::endl;
+
+			throw exception("gl::uniform", "type mismatch.");
+		}
+
+		this->update(datatype, 1, address_of(t));
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void uniform::update(Iterator begin, Iterator end) {
+		assert(this->is_valid() && this->is_array());
+
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(is_tensor_v<T>);
+
+		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
+		static_assert(datatype != GL_NONE);
+
+		if (auto size = std::distance(begin, end); size != m_size) {
+			std::cerr << "[heatsink::gl::uniform] cannot assign array of " << size;
+			std::cerr << " to uniform (view) with " << m_size << " elements." << std::endl;
+
+			throw exception("gl::uniform", "array size mismatch.");
+		}
+		if (!shader_traits::is_assignable(m_datatype, datatype)) {
+			std::cerr << "[heatsink::gl::uniform] cannot assign '" << datatype;
+			std::cerr << "' element to '" << m_datatype << "' array." << std::endl;
+
+			throw exception("gl::uniform", "type mismatch.");
+		}
+
+		this->update(datatype, m_size, address_of(*begin));
+	}
+
+	template<tensor T> requires (std::is_array_v<T> == false)
+	uniform& uniform::operator =(const T& t) {
+		this->update(t);
+		return *this;
+	}
 }
