@@ -23,8 +23,7 @@ namespace {
 				return context::profile::any;
 
 			default:
-				std::cerr << "'" << glfw << "' is not a GLFW profile enumeration value." << std::endl;
-				throw exception("context::profile", "unknown GLFW profile enumeration.");
+				throw std::domain_error("invalid GLFW profile enumeration.");
 		}
 	}
 }
