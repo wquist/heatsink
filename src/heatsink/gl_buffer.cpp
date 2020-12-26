@@ -23,7 +23,7 @@ namespace heatsink::gl {
 	buffer::buffer(GLenum mode, std::size_t size, const void* data, GLbitfield access)
 	: object<GL_BUFFER>(mode), m_immutable{true}, m_base{}, m_size{size} {
 		this->bind();
-		glBufferStorage(this->get_target(), m_size, data, access);
+		glBufferStorage(this->get_target(), (GLsizeiptr)m_size, data, access);
 	}
 
 	void buffer::set(std::size_t size, GLenum usage) {
@@ -33,14 +33,14 @@ namespace heatsink::gl {
 		m_size = size;
 
 		this->bind();
-		glBufferData(this->get_target(), m_size, nullptr, usage);
+		glBufferData(this->get_target(), (GLsizeiptr)m_size, nullptr, usage);
 	}
 
 	void buffer::invalidate() {
 		assert(this->is_valid() && !this->is_empty());
 
 		this->bind();
-		glInvalidateBufferSubData(this->get_target(), m_base, m_size);
+		glInvalidateBufferSubData(this->get_target(), (GLintptr)m_base, (GLsizeiptr)m_size);
 	}
 
 	buffer::view buffer::make_view(std::size_t offset, std::size_t size) {
