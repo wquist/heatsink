@@ -24,6 +24,9 @@ namespace {
 				return std::make_pair(GLFW_OPENGL_COMPAT_PROFILE, false);
 			case context::profile::any:
 				return std::make_pair(GLFW_OPENGL_ANY_PROFILE, false);
+
+			default:
+				throw std::domain_error("invalid heatsink::context::profile enumeration.");
 		}
 	}
 }
