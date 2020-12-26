@@ -76,9 +76,12 @@ namespace heatsink::gl {
 		constexpr auto component = make_enum_v<component_type>;
 		static_assert(component != GL_NONE);
 
+		// A format will have between 1 and 4 components.
+		constexpr auto component_count = std::extent_v<value_type>;
+		static_assert(component_count && component_count <= 4);
+
 		GLenum format = GL_NONE;
 		switch (component_count) {
-			case 0: format = GL_RED;
 			case 1: format = GL_RED;
 			case 2: format = GL_RG;
 			case 3: format = GL_RGB;

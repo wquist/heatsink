@@ -464,8 +464,10 @@ namespace heatsink::gl {
 		assert(std::distance(begin, end) * sizeof(T) == format.get_size());
 
 		auto itype = format_traits::underlying_datatype(internal_format);
-		auto isize = size_of(datatype);
+		auto isize = size_of(itype);
 
+		// A packed type is represented by a single `itype` regardless of its
+		// extent (component count). Check to determine the appopriate size.
 		auto pixel_size = (is_packed(itype)) ? isize : isize * format_traits::extent(internal_format);
 		assert(!(m_base % pixel_size) && !(m_size % pixel_size));
 
