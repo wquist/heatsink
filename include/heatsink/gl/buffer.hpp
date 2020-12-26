@@ -188,7 +188,7 @@ namespace heatsink::gl {
 
 	protected:
 		// Allow subclass access to the base "offset" managed by this buffer.
-		std::size_t get_offset() const;
+		std::size_t get_base() const;
 
 	private:
 		// Whether the buffer was created with `glBufferStorage()`.
@@ -512,7 +512,7 @@ namespace heatsink::gl {
 	template<bool Const>
 	std::size_t buffer::basic_view<Const>::get_offset() const {
 		assert(this->is_valid());
-		return buffer::get_offset();
+		return buffer::get_base();
 	}
 
 	template<standard_layout T>

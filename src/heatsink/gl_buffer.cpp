@@ -63,7 +63,11 @@ namespace heatsink::gl {
 		return m_size;
 	}
 
-	std::size_t buffer::get_offset() const {
+	std::size_t buffer::get_base() const {
 		return m_base;
+	}
+
+	buffer::const_view buffer::const_view::make_view(std::size_t offset, std::size_t size) const {
+		return buffer::make_view(offset, size);
 	}
 }
