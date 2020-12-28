@@ -436,7 +436,7 @@ namespace heatsink::gl {
 		assert(m_base == 0);
 
 		m_size = std::distance(begin, end) * sizeof(T);
-		assert(m_size > 0);
+		assert(m_size >= 0);
 
 		this->bind();
 		glBufferData(this->get_target(), m_size, address_of(*begin), usage);
