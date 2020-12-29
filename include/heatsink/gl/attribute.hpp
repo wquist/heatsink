@@ -32,7 +32,7 @@ namespace heatsink::gl {
 		 * name in the given shader program. Note that the name is not stored,
 		 * since it should not be accessible in a non-annotated attribute.
 		 */
-		attribute(const class program&, const std::string& name);
+		attribute(const class program&, std::string name);
 		/**
 		 * Create a non-annotated attribute with the given location.
 		 */
@@ -41,7 +41,7 @@ namespace heatsink::gl {
 	private:
 		// Create the attribute with all information specified. This constructor
 		// is used by the public variants and by introspection.
-		attribute(const class program&, const std::string& name, GLenum type, GLsizei size);
+		attribute(const class program&, std::string name, GLenum type, GLsizei size);
 
 	public:
 		/**

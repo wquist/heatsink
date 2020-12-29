@@ -39,17 +39,17 @@ namespace heatsink::gl {
 
 	// A datatype of `GL_NONE` is used to determine whether this attribute has
 	// been constructed through an annotation.
-	attribute::attribute(const program& p, const std::string& name)
-	: attribute(p, name, GL_NONE, 0) {}
+	attribute::attribute(const program& p, std::string name)
+	: attribute(p, std::move(name), GL_NONE, 0) {}
 
 	attribute::attribute(std::size_t location)
 	: m_location(m_location), m_datatype{GL_NONE} {}
 
-	attribute::attribute(const program& p, const std::string& name, GLenum type, GLsizei size)
-	: m_name{name}, m_datatype{type}, m_size(size) {
-		m_location = glGetAttribLocation(p.get(), name.c_str());
+	attribute::attribute(const program& p, std::string name, GLenum type, GLsizei size)
+	: m_name{std::move(name)}, m_datatype{type}, m_size(size) {
+		m_location = glGetAttribLocation(p.get(), m_name.c_str());
 		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::attribute] unknown attribute name '" << name << "'." << std::endl;
+			std::cerr << "[heatsink::gl::attribute] unknown attribute name '" << m_name << "'." << std::endl;
 			throw exception("gl::attribute", "could not find attribute location.");
 		}
 	}
