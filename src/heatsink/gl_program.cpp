@@ -7,8 +7,6 @@
 #include <heatsink/error/exception.hpp>
 
 namespace {
-	using shader_name = heatsink::gl::program::shader_name;
-
 	// Convert a set of `shader`/`shader_name`s into their `GLuint` values.
 	template<class T>
 	std::vector<GLuint> to_names(const std::vector<T>& shaders) {
