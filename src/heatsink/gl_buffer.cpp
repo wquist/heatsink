@@ -14,10 +14,10 @@ namespace heatsink::gl {
 		this->set(size, usage);
 	}
 
-	buffer::buffer(const buffer& other, std::size_t offset, std::size_t size)
-	: object<GL_BUFFER>(other), m_immutable{other.m_immutable}, m_base{other.m_base + offset}, m_size{size} {
+	buffer::buffer(const buffer& b, std::size_t offset, std::size_t size)
+	: object<GL_BUFFER>(b), m_immutable{b.m_immutable}, m_base{b.m_base + offset}, m_size{size} {
 		assert(this->is_valid());
-		assert(m_base + m_size <= other.m_size);
+		assert(m_base + m_size <= b.m_base + b.m_size);
 	}
 
 	buffer::buffer(GLenum mode, std::size_t size, const void* data, GLbitfield access)
