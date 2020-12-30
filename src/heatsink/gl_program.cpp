@@ -68,6 +68,7 @@ namespace heatsink::gl {
 		this->link(names, from);
 
 		m_attributes = attribute::from_program(*this);
+		m_uniforms = uniform::from_program(*this);
 	}
 
 	void program::use() const {
@@ -85,12 +86,23 @@ namespace heatsink::gl {
 	}
 
 	attribute program::get_attribute(const std::string& name) const {
+		assert(this->is_valid());
 		if (!m_attributes.count(name)) {
 			std::cerr << "[heatsink::gl::prorgam] could not find attribute '" << name << "'." << std::endl;
 			throw exception("gl::program", "attribute does not exist.");
 		}
 
 		return m_attributes.at(name);
+	}
+
+	uniform program::get_uniform(const std::string& name) {
+		assert(this->is_valid());
+		if (!m_uniforms.count(name)) {
+			std::cerr << "[heatsink::gl::program] could not find uniform '" << name << "'." << std::endl;
+			throw exception("gl::program", "uniform does not exist.");
+		}
+
+		return m_uniforms.at(name);
 	}
 
 	void program::link(const std::vector<GLuint>& names, const std::string& from) {
@@ -111,6 +123,10 @@ namespace heatsink::gl {
 		// associated with the `GL_PROGRAM` object.
 		for (const auto& n : names)
 			glDetachShader(m_name, n);
+	}
+
+	uniform program::operator [](const std::string& name) {
+		return this->get_uniform(name);
 	}
 
 	program::shader_name::shader_name(const shader& s)

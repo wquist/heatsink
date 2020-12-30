@@ -7,6 +7,7 @@
 
 #include <heatsink/gl/attribute.hpp>
 #include <heatsink/gl/shader.hpp>
+#include <heatsink/gl/uniform.hpp>
 #include <heatsink/platform/gl.hpp>
 
 namespace heatsink::gl {
@@ -88,10 +89,23 @@ namespace heatsink::gl {
 		 * active and have been discovered through introspection.
 		 */
 		attribute get_attribute(const std::string&) const;
+		/**
+		 * Retrieve the specified uniform, if it exists. The uniform must be
+		 * active and have been discovered through introspection. Note that the
+		 * method is non-const, as changing uniform values can be considered to
+		 * alter the state of the program/shader overall.
+		 */
+		uniform get_uniform(const std::string&);
 
 	private:
 		// Link the specified `GL_SHADER` identifiers to this program.
 		void link(const std::vector<GLuint>& names, const std::string& from);
+
+	public:
+		/**
+		 * Shorthand for retrieving a uniform by name. See `get_uniform()`.
+		 */
+		uniform operator [](const std::string&);
 
 	private:
 		// The OpenGL identifier for this program.
@@ -99,6 +113,8 @@ namespace heatsink::gl {
 
 		// The introspected attribute names mapped to their values.
 		std::map<std::string, attribute> m_attributes;
+		// The introspected uniform names mapped to their values.
+		std::map<std::string, uniform> m_uniforms;
 	};
 
 	/**

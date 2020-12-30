@@ -201,7 +201,6 @@ namespace heatsink::gl {
 	}
 
 	uniform::view uniform::operator [](std::size_t index) {
-		assert(this->is_valid());
 		return this->make_view(index, 1);
 	}
 
