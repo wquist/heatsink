@@ -51,7 +51,7 @@ namespace heatsink::gl {
 	private:
 		// Create a uniform with all parameters specified. This constructor is
 		// used by the public variants and introspection.
-		uniform(GLuint owner, GLuint type, std::size_t size, std::size_t namelen);
+		uniform(GLuint owner, GLuint index, GLuint type, std::size_t size, std::size_t namelen);
 		// Copy a uniform, but alter the parameters appropriate for a `view`
 		// within the given range. Used by the child `view` constructor.
 		uniform(const uniform&, std::size_t offset, std::size_t size);
@@ -91,7 +91,7 @@ namespace heatsink::gl {
 		/**
 		 * Retrieve the name of this uniform. If the uniform is an array, it
 		 * will be introspected with a `[0]` prepended to it; this implicit zero
-		 * index is not stored in the name, as the index-less variants
+		 * index is not stored in the name here, as the index-less variant
 		 * represents the same value.
 		 */
 		const std::string& get_name() const;
@@ -110,14 +110,14 @@ namespace heatsink::gl {
 
 	protected:
 		// Allow subclass access to the base "offset" managed by this uniform.
-		std::size_t get_offset() const;
+		std::size_t get_base() const;
 
 	private:
 		// Overloads to pass uniform data to the correct `glUniform*()` variant.
-		void update(GLenum type, std::size_t count, const bool*);
-		void update(GLenum type, std::size_t count, const GLint*);
-		void update(GLenum type, std::size_t count, const GLuint*);
-		void update(GLenum type, std::size_t count, const GLfloat*);
+		void update_values(GLenum type, std::size_t count, const bool*);
+		void update_values(GLenum type, std::size_t count, const GLint*);
+		void update_values(GLenum type, std::size_t count, const GLuint*);
+		void update_values(GLenum type, std::size_t count, const GLfloat*);
 
 	public:
 		/**
@@ -136,10 +136,6 @@ namespace heatsink::gl {
 	private:
 		// The OpenGL identifier of the owning program.
 		GLuint m_program;
-		// The index of this uniform within the owning program (note that this
-		// is not necessarily the same as the location, especially when dealing
-		// with array types.
-		GLuint m_index;
 
 		// The location of this uniform within the owning program (always
 		// castable to a `GLuint` when valid).
@@ -212,15 +208,17 @@ namespace heatsink::gl {
 			throw exception("gl::uniform", "type mismatch.");
 		}
 
-		this->update(datatype, 1, address_of(t));
+		this->update_values(datatype, 1, address_of(t));
 	}
 
 	template<std::contiguous_iterator Iterator>
 	void uniform::update(Iterator begin, Iterator end) {
-		assert(this->is_valid() && this->is_array());
-
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(is_tensor_v<T>);
+		
+		// The iterators could represent a single value, but they still imply
+		// multiple values, so enforce the array here.
+		assert(this->is_valid() && this->is_array());
 
 		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
 		static_assert(datatype != GL_NONE);
@@ -238,7 +236,7 @@ namespace heatsink::gl {
 			throw exception("gl::uniform", "type mismatch.");
 		}
 
-		this->update(datatype, m_size, address_of(*begin));
+		this->update_values(datatype, m_size, address_of(*begin));
 	}
 
 	template<tensor T> requires (std::is_array_v<T> == false)
