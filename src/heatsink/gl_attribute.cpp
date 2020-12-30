@@ -78,7 +78,7 @@ namespace heatsink::gl {
 		return m_datatype;
 	}
 
-	std::size_t attribute::get_index_count() const {
+	std::size_t attribute::get_size() const {
 		assert(this->is_valid() && this->is_annotated());
 		return m_size;
 	}

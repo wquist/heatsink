@@ -77,7 +77,7 @@ namespace heatsink::gl {
 		 * Retrieve the number of attribute indices needed to represent this
 		 * (array) type, if annotated.
 		 */
-		std::size_t get_index_count() const;
+		std::size_t get_size() const;
 
 	private:
 		// The attribute location (always castable to `GLuint` when valid).

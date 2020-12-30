@@ -3,6 +3,8 @@
 #include <cstdlib>
 #include <type_traits>
 
+#include <glm/glm.hpp>
+
 #include <heatsink/platform/gl.hpp>
 #include <heatsink/traits/enum.hpp>
 #include <heatsink/traits/tensor.hpp>
@@ -16,6 +18,15 @@ namespace heatsink::gl {
 	 */
 	class vertex_format {
 	public:
+		/**
+		 * The components/array size of the vertex format. The first dimension
+		 * describes the component count; that is, the number of elements per
+		 * single vector. The second represents the array size, which is also
+		 * equal to the number of attribute indices needed to represent the
+		 * complete format. For example, a mat3[2] would have extents [3,6].
+		 */
+		using extents = glm::uvec2;
+
 		/**
 		 * Vertex buffer data may contain data for multiple attributes, in which
 		 * case the "packing" of the data must also be specified. A tightly
@@ -33,17 +44,16 @@ namespace heatsink::gl {
 
 	public:
 		/**
+		 * Create a vertex format from an OpenGL type enumeration. This allows
+		 * vertex formats to quickly be created from standard FLOAT_VEC3, etc.
+		 */
+		vertex_format(GLenum);
+		/**
 		 * Create a vertex format from the given base type, dimensions, and
 		 * packing information. The type enumeration must be one of the GL
 		 * primitive types (non-vector and non-matrix).
 		 */
-		vertex_format(GLenum, std::size_t components, std::size_t n, packing = {});
-		/**
-		 * Create a "simple" (non-array) vertex format. This is like the above
-		 * constructor, but allows the component size to be passed with an
-		 * assumed array size of `1`. All other parameters are identical.
-		 */
-		vertex_format(GLenum, std::size_t components, packing = {});
+		vertex_format(GLenum, extents, packing = {});
 
 		/**
 		 * Infer the parameters of a vertex format from a structure member
@@ -52,7 +62,7 @@ namespace heatsink::gl {
 		 * vector type, rather than a single value scalar array.
 		 */
 		template<tensor T, standard_layout Vertex>
-		vertex_format(T Vertex::*member, bool force_array = false);
+		vertex_format(T Vertex::*member, bool force_array = true);
 
 	public:
 		/**
@@ -60,21 +70,10 @@ namespace heatsink::gl {
 		 */
 		GLenum get_datatype() const;
 		/**
-		 * Retrieve the component count of this format. Note that this value is
-		 * not guaranteed to fit the given amount of values in a single
-		 * attribute index (see double datatypes). However, its value is not
-		 * modified like the index count, as the components may not fit evenly
-		 * across multiple indices (namely, the three-component `dvec`).
+		 * Retrieve the extents (component and attribute index count) of this
+		 * vertex format. See the `extents` type definition.
 		 */
-		std::size_t get_component_count() const;
-		/**
-		 * Retrieve the attribute count of this format (the number of attribute
-		 * indices needed to represent this format). Note that this value may be
-		 * different from the initial array size passed to the constructor (see
-		 * double datatypes).
-		 */
-		std::size_t get_index_count() const;
-
+		extents get_extents() const;
 		/**
 		 * Retrieve the stride and offset of this format.
 		 */
@@ -83,10 +82,8 @@ namespace heatsink::gl {
 	private:
 		// The individual component type.
 		GLenum m_datatype;
-		// The extents of the component/index dimensions.
-		std::size_t m_components;
-		std::size_t m_indices;
-
+		// The extents of the components/indices.
+		extents m_extents;
 		// The field packing within a larger structure.
 		packing m_packing;
 	};
@@ -106,7 +103,7 @@ namespace heatsink::gl {
 		// dimensional array represented an array of vector types.
 		static_assert(value_rank <= 2);
 
-		constexpr auto datatype = make_enum_v<std::remove_all_extents_t<value_type>>;
+		constexpr auto datatype   = make_enum_v<std::remove_all_extents_t<value_type>>;
 		static_assert(datatype != GL_NONE);
 
 		m_datatype = datatype;
@@ -117,25 +114,24 @@ namespace heatsink::gl {
 				constexpr auto components = std::extent_v<value_type, 1>;
 				static_assert(components <= 4);
 
-				m_components = components;
-				m_indices    = std::extent_v<value_type, 0>;
+				m_extents = glm::vec2(components, std::extent_v<value_type, 0>);
 				break;
 			}
 			case 1: {
-				m_components = std::extent_v<value_type>;
-				m_indices    = 1;
-
+				constexpr auto components = std::extent_v<value_type, 0>;
 				// If there is only one dimension, it could be either the
 				// "vector" or array dimension. The extent is coerced to a
 				// vector type if the array size is sufficiently small.
-				if (m_components > 4 || force_array)
-					std::swap(m_components, m_indices);
+				if (components > 4 || force_array)
+					m_extents = glm::vec2(1, components);
+				else
+					m_extents = glm::vec2(components, 1);
 
 				break;
 			}
 			default: {
-				m_components = 1;
-				m_indices    = 1;
+				// The type is a scalar, so both extents are singular.
+				m_extents = glm::vec2(1);
 			}
 		}
 	}
