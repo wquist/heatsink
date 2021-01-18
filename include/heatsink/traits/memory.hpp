@@ -10,11 +10,12 @@
 
 namespace heatsink {
 	/**
-	 * Determine the actual type and memory address of a tensor. The result will
-	 * point to the first element of the tensor and have a type equivalent to a
-	 * single element of `tensor_decay<T>`.
+	 * Determine the actual type and memory address of a standard layout type.
+	 * The result will point to the start of the first member; additionally, if
+	 * the type is a tesnsor, it will be cast to a type equivalent to a single
+	 * element of `tensor_decay<T>`.
 	 */
-	template<tensor T>
+	template<standard_layout T>
 	constexpr const auto* address_of(T&);
 
 	/**
@@ -42,10 +43,14 @@ namespace heatsink {
 }
 
 namespace heatsink {
-	template<tensor T>
+	template<standard_layout T>
 	constexpr const auto* address_of(T& t) {
-		using element_type = std::remove_all_extents<tensor_decay_t<T>>;
-		return reinterpret_cast<const element_type*>(std::addressof(t));
+		if constexpr (is_tensor_v<T>) {
+			using element_type = std::remove_all_extents<tensor_decay_t<T>>;
+			return reinterpret_cast<const element_type*>(std::addressof(t));
+		} else {
+			return std::addressof(t);
+		}
 	}
 
 	template<class T, standard_layout Struct>
