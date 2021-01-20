@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <type_traits>
+#include <utility>
 
 namespace heatsink {
 	/**
@@ -155,4 +156,37 @@ namespace heatsink {
 	struct tensor_decay<T> {
 		using type = typename tensor_decay<detail::subscript_t<T>>::type[tensor_extent<T>::value];
 	};
+}
+
+namespace std {
+	// Enable structured binding support for tensor types.
+	template<heatsink::tensor T> requires (is_class_v<T>)
+	struct tuple_size<T> : std::integral_constant<size_t, heatsink::tensor_extent_v<T>> {};
+
+	// All tensor elements should be the same type, but use subscripts anyways.
+	template<size_t Index, heatsink::tensor T> requires (is_class_v<T>)
+	struct tuple_element<Index, T> {
+		static_assert(Index < heatsink::tensor_extent_v<T>);
+		using type = heatsink::detail::subscript_t<T>;
+	};
+
+	template<size_t Index, heatsink::tensor T> requires (is_class_v<T>)
+	constexpr auto& get(T& t) {
+		return t[Index];
+	}
+
+	template<size_t Index, heatsink::tensor T> requires (is_class_v<T>)
+	constexpr const auto& get(const T& t) {
+		return t[Index];
+	}
+
+	template<size_t Index, heatsink::tensor T> requires (is_class_v<T>)
+	constexpr auto&& get(T&& t) {
+		return move(t[Index]);
+	}
+
+	template<size_t Index, heatsink::tensor T> requires (is_class_v<T>)
+	constexpr const auto&& get(const T&& t) {
+		return move(t[Index]);
+	}
 }
