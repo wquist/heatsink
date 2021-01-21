@@ -15,7 +15,7 @@
 namespace heatsink::gl {
 	/**
 	 * A basic OpenGL buffer type. This represents the base functionality common
-	 * across all types (or `mode`s, as referred to in the class members).
+	 * across all types (or targets, as referred to in OpenGL documentation).
 	 * More usable variants will extend from the class and implement type-
 	 * specific behavior.
 	 */
@@ -58,19 +58,19 @@ namespace heatsink::gl {
 		 * specify read, write, dynamic storage, persistent, coherent, etc. This
 		 * overload reserves space but does not fill it with any data.
 		 */
-		static buffer immutable(GLenum mode, std::size_t, GLbitfield access);
+		static buffer immutable(GLenum, std::size_t, GLbitfield access);
 		/**
 		 * Create an immutable buffer and fill it with data pointed to by the
 		 * given iterator range. See the above overload.
 		 */
 		template<std::contiguous_iterator Iterator>
-		static buffer immutable(GLenum mode, Iterator begin, Iterator end, GLbitfield access);
+		static buffer immutable(GLenum, Iterator begin, Iterator end, GLbitfield access);
 
 	public:
 		/**
-		 * Create a new buffer with the given mode. With this overload, no data
-		 * will be allocated; `set()` MUST be called before any other methods
-		 * are invoked on it.
+		 * Create a new buffer with the given target. With this overload, no
+		 * data will be allocated; `set()` MUST be called before any other
+		 * methods are invoked on it.
 		 */
 		buffer(GLenum);
 		/**
@@ -78,14 +78,14 @@ namespace heatsink::gl {
 		 * (such that `update()` can be called immediately). For more details,
 		 * see the above overload.
 		 */
-		buffer(GLenum mode, std::size_t, GLenum usage = GL_STATIC_DRAW);
+		buffer(GLenum, std::size_t, GLenum usage = GL_STATIC_DRAW);
 		/**
 		 * Create a new buffer and fill it with the data pointed to by the given
 		 * iterator range. The individual value type will be used to deduce the
 		 * appropriate data format and type. See the above overload.
 		 */
 		template<std::contiguous_iterator Iterator>
-		buffer(GLenum mode, Iterator begin, Iterator end, GLenum usage = GL_STATIC_DRAW);
+		buffer(GLenum, Iterator begin, Iterator end, GLenum usage = GL_STATIC_DRAW);
 
 	protected:
 		// Copy a buffer, but alter parameters appropriate for a `view` with the
@@ -94,7 +94,7 @@ namespace heatsink::gl {
 
 	private:
 		// Create an immutable buffer with the given data and access.
-		buffer(GLenum mode, std::size_t, const void* data, GLbitfield access);
+		buffer(GLenum, std::size_t, const void* data, GLbitfield access);
 
 	public:
 		/**
@@ -124,17 +124,11 @@ namespace heatsink::gl {
 		/**
 		 * Clear the buffer store to the specified value. The format species how
 		 * the data will be stored inside the buffer, copied from a single pixel
-		 * with the given format, whose components are specified within the
-		 * iterator range.
-		 */
-		template<std::contiguous_iterator Iterator>
-		void clear(GLenum internal_format, Iterator begin, Iterator end, pixel_format);
-		/**
-		 * Clear the buffer store to the specified value, where the pixel is
-		 * specified as a multi-component tensor type. See the above overload.
+		 * with the given format, whose components are specified as a multi-
+		 * component tensor type.
 		 */
 		template<tensor T>
-		void clear(GLenum internal_format, const T&, pixel_format = pixel_format::from_type<T>());
+		void clear(GLenum ifmt, const T&, pixel_format = pixel_format::from_type<T>());
 		/**
 		 * Mark the memory region of this buffer as undefined. This will cause
 		 * pending operations to use the old data, but client updates will be
@@ -411,19 +405,19 @@ namespace heatsink::gl {
 
 namespace heatsink::gl {
 	template<std::contiguous_iterator Iterator>
-	buffer buffer::immutable(GLenum mode, Iterator begin, Iterator end, GLbitfield access) {
+	buffer buffer::immutable(GLenum target, Iterator begin, Iterator end, GLbitfield access) {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(std::is_standard_layout_v<T>);
 
 		auto size = std::distance(begin, end) * sizeof(T);
 		assert(size > 0);
 
-		return buffer(mode, size, address_of(*begin), access);
+		return buffer(target, size, address_of(*begin), access);
 	}
 
 	template<std::contiguous_iterator Iterator>
-	buffer::buffer(GLenum mode, Iterator begin, Iterator end, GLenum usage)
-	: buffer(mode) {
+	buffer::buffer(GLenum target, Iterator begin, Iterator end, GLenum usage)
+	: buffer(target) {
 		this->set(begin, end, usage);
 	}
 
@@ -454,34 +448,24 @@ namespace heatsink::gl {
 		glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
 	}
 
-	template<std::contiguous_iterator Iterator>
-	void buffer::clear(GLenum internal_format, Iterator begin, Iterator end, pixel_format format) {
-		using T = typename std::iterator_traits<Iterator>::value_type;
-		static_assert(std::is_standard_layout_v<T>);
-
+	template<tensor T>
+	void buffer::clear(GLenum ifmt, const T& t, pixel_format format) {
 		assert(this->is_valid() && !this->is_empty());
-		assert(format_traits::is_sized(internal_format));
-		assert(std::distance(begin, end) * sizeof(T) == format.get_size());
+		assert(format_traits::is_sized(ifmt));
 
-		auto itype = format_traits::underlying_datatype(internal_format);
+		auto itype = format_traits::underlying_datatype(ifmt);
 		auto isize = size_of(itype);
 
 		// A packed type is represented by a single `itype` regardless of its
 		// extent (component count). Check to determine the appopriate size.
-		auto pixel_size = (is_packed(itype)) ? isize : isize * format_traits::extent(internal_format);
+		auto pixel_size = (is_packed(itype)) ? isize : isize * format_traits::extent(ifmt);
 		assert(!(m_base % pixel_size) && !(m_size % pixel_size));
 
 		auto pfmt  = format.get();
 		auto ptype = format.get_datatype();
 
 		this->bind();
-		glClearBufferSubData(this->get_target(), internal_format, m_base, m_size, pfmt, ptype, address_of(*begin));
-	}
-
-	template<tensor T>
-	void buffer::clear(GLenum internal_format, const T& value, pixel_format format) {
-		auto* data = &value;
-		this->clear(internal_format, data, data + 1, format);
+		glClearBufferSubData(this->get_target(), ifmt, m_base, m_size, pfmt, ptype, address_of(&t));
 	}
 
 	template<standard_layout T>

@@ -1,16 +1,16 @@
 #include <heatsink/gl/buffer.hpp>
 
 namespace heatsink::gl {
-	buffer buffer::immutable(GLenum mode, std::size_t size, GLbitfield access) {
+	buffer buffer::immutable(GLenum target, std::size_t size, GLbitfield access) {
 		assert(size > 0);
-		return buffer(mode, size, nullptr, access);
+		return buffer(target, size, nullptr, access);
 	}
 
-	buffer::buffer(GLenum mode)
-	: object<GL_BUFFER>(mode), m_immutable{false}, m_base{}, m_size{} {}
+	buffer::buffer(GLenum target)
+	: object<GL_BUFFER>(target), m_immutable{false}, m_base{}, m_size{} {}
 
-	buffer::buffer(GLenum mode, std::size_t size, GLenum usage)
-	: object<GL_BUFFER>(mode), m_immutable{false}, m_base{} {
+	buffer::buffer(GLenum target, std::size_t size, GLenum usage)
+	: object<GL_BUFFER>(target), m_immutable{false}, m_base{} {
 		this->set(size, usage);
 	}
 
@@ -20,8 +20,8 @@ namespace heatsink::gl {
 		assert(m_base + m_size <= b.m_base + b.m_size);
 	}
 
-	buffer::buffer(GLenum mode, std::size_t size, const void* data, GLbitfield access)
-	: object<GL_BUFFER>(mode), m_immutable{true}, m_base{}, m_size{size} {
+	buffer::buffer(GLenum target, std::size_t size, const void* data, GLbitfield access)
+	: object<GL_BUFFER>(target), m_immutable{true}, m_base{}, m_size{size} {
 		this->bind();
 		glBufferStorage(this->get_target(), (GLsizeiptr)m_size, data, access);
 	}
