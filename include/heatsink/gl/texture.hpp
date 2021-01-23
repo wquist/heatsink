@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <cstdlib>
 #include <iterator>
 #include <type_traits>
@@ -10,7 +11,9 @@
 #include <heatsink/gl/object.hpp>
 #include <heatsink/gl/pixel_format.hpp>
 #include <heatsink/platform/gl.hpp>
+#include <heatsink/traits/memory.hpp>
 #include <heatsink/traits/tensor.hpp>
+#include <heatsink/traits/texture.hpp>
 
 namespace heatsink::gl {
 	/**
@@ -175,6 +178,11 @@ namespace heatsink::gl {
 		 */
 		extents get_extents(std::size_t mip = 0) const;
 		/**
+		 * Retrieve the "rank" of this texture, that is, the overall texture
+		 * dimension (1D/2D/3D). Equivalent to `get_extents().get_length()`.
+		 */
+		std::size_t get_rank() const;
+		/**
 		 * Retrieve the internal format of this texture. This is the internal
 		 * format specified during creation or setting of the texture.
 		 */
@@ -188,14 +196,14 @@ namespace heatsink::gl {
 
 	protected:
 		// Allow subclass access to the base "offset" managed by this texture.
-		glm::uvec3 get_base() const;
+		glm::uvec3 get_base(std::size_t mip = 0) const;
 
 	private:
 		// Whether the texture was created with `glTextureStorage()`.
 		bool m_immutable;
 		// The start of the data managed in this texture. Used by subclasses.
 		glm::uvec3 m_base;
-		// The dimensions of the texture.
+		// The dimensions of the texture (unused components are always `1`).
 		glm::uvec3 m_extents;
 
 		// The internal format of the texture
@@ -297,9 +305,10 @@ namespace heatsink::gl {
 	public:
 		/**
 		 * Retrieve the offset between the starting location of the owning
-		 * texture and the first location represented in this view.
+		 * texture and the first location represented in this view, adjusted for
+		 * the given mip level. See `texture::get_extents()`.
 		 */
-		extents get_offset() const;
+		extents get_offset(std::size_t mip = 0) const;
 
 		/**
 		 * Bind the name of the view as the active texture, for its target. Note
@@ -358,8 +367,128 @@ namespace heatsink::gl {
 
 		using texture::make_view;
 	};
+
+	/**
+	 * Calculate the number of bytes needed to represent a texture of the given
+	 * size and format.
+	 */
+	constexpr std::size_t size_of(texture::extents, pixel_format);
 }
 
 namespace heatsink::gl {
-	//
+	template<std::contiguous_iterator Iterator>
+	texture::texture(GLenum target, GLenum ifmt, extents es, Iterator begin, Iterator end, pixel_format format)
+	: texture(target) {
+		// Initialize the texture data with mutable storage.
+		this->set(ifmt, es, begin, end, format);
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void texture::set(GLenum ifmt, extents es, Iterator begin, Iterator end, pixel_format format) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(is_tensor_v<T>);
+
+		// If a texture is not immutable, it cannot be multisample.
+		assert(this->is_valid() && !this->is_immutable());
+		assert(m_base == glm::uvec3(0));
+		assert(std::distance(begin, end) * sizeof(T) == size_of(es, format));
+
+		auto t = this->get_target();
+		// Cubemap storage can only be reallocated with the no-data `set()`.
+		assert(!texture_traits::is_cubemap(t));
+
+		auto rank = texture_traits::rank(t);
+		assert(rank == es.get_length());
+
+		m_extents = es.get(1);
+		m_format  = ifmt;
+		m_levels  = 1;
+
+		auto [x, y, z] = m_extents;
+		auto pfmt  = format.get();
+		auto ptype = format.get_datatype();
+
+		this->bind(0);
+		glTexParameteri(t, GL_TEXTURE_MAX_LEVEL, m_levels - 1);
+
+		switch (rank) {
+			case 1: glTexImage1D(t, 0, m_format, x,       0, pfmt, ptype, address_of(*begin)); break;
+			case 2: glTexImage2D(t, 0, m_format, x, y,    0, pfmt, ptype, address_of(*begin)); break;
+			case 3: glTexImage3D(t, 0, m_format, x, y, z, 0, pfmt, ptype, address_of(*begin)); break;
+		}
+	}
+
+	template<std::contiguous_iterator Iterator>
+	void texture::update(std::size_t mip, Iterator begin, Iterator end, pixel_format format) {
+		using T = typename std::iterator_traits<Iterator>::value_type;
+		static_assert(is_tensor_v<T>);
+
+		assert(this->is_valid() && !this->is_empty());
+		assert(mip < m_levels);
+
+		auto es = this->get_extents(mip);
+		assert(std::distance(begin, end) * sizeof(T) == size_of(es, format));
+
+		auto t = this->get_target();
+		assert(!texture_traits::is_multisample(t));
+		// If this is a cubemap, only single-face views should be updated.
+		assert(!texture_traits::is_cubemap(t) || (m_extents.z == 1));
+
+		auto rank = texture_traits::rank(t);
+		if (t == GL_TEXTURE_CUBE_MAP) {
+			// Normal cube maps must be treated as separate 2D textures, based
+			// on the current offset of this view. Note that cubemap arrays use
+			// the normal 3D texture upload functions.
+			t = GL_TEXTURE_CUBE_MAP_POSITIVE_X + m_base.z;
+			rank = 2;
+		}
+
+		auto [bx, by, bz] = this->get_base(mip);
+		auto [sx, sy, sz] = es.get(1);
+		auto pfmt  = format.get();
+		auto ptype = format.get_datatype();
+
+		this->bind(0);
+		switch (rank) {
+			case 1: glTexSubImage1D(t, mip, bx,         sx,         pfmt, ptype, address_of(*begin)); break;
+			case 2: glTexSubImage2D(t, mip, bx, by,     sx, sy,     pfmt, ptype, address_of(*begin)); break;
+			case 3: glTexSubImage3D(t, mip, bx, by, bz, sx, sy, sz, pfmt, ptype, address_of(*begin)); break;
+		}
+	}
+
+	template<tensor T>
+	void texture::clear(std::size_t mip, const T& t, pixel_format format) {
+		assert(this->is_valid() && !this->is_empty());
+		assert(mip < m_levels);
+
+		auto [bx, by, bz] = this->get_base(mip);
+		auto [sx, sy, sz] = this->get_extents(mip).get(1);
+		auto pfmt  = format.get();
+		auto ptype = format.get_datatype();
+
+		glClearTexSubImage(this->get(), mip, bx, by, bz, sx, sy, sz, pfmt, ptype, address_of(*begin));
+	}
+
+	template<bool Const>
+	texture::basic_view<Const>::basic_view(reference other)
+	: texture(other, extents::zero(other.get_rank()), other.get_extents()) {}
+
+	template<bool Const>
+	texture::basic_view<Const>::basic_view(reference other, extents offset, extents size)
+	: texture(other, offset, size) {}
+
+	template<bool Const>
+	texture::basic_view<Const>::basic_view(const basic_view& other, extents offset, extents size)
+	: texture(other, offset, size) {}
+
+	template<bool Const>
+	texture::basic_view<Const>::~basic_view() {
+		this->reset();
+	}
+
+	template<bool Const>
+	texture::basic_view<Const>::extents texture::basic_view<Const>::get_offset(std::size_t mip) const {
+		assert(this->is_valid());
+		return texture::get_base(mip);
+	}
 }
