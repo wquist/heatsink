@@ -13,6 +13,13 @@ namespace {
 
 		return results;
 	}
+
+	void validate_location(GLint location, const std::string& name) {
+		if (location == -1) {
+			std::cerr << "[heatsink::gl::uniform] unknown uniform name '" << name << "'." << std::endl;
+			throw heatsink::exception("gl::uniform", "could not find uniform location.");
+		}
+	}
 }
 
 namespace heatsink::gl {
@@ -50,10 +57,7 @@ namespace heatsink::gl {
 		std::vector<GLuint> index(1);
 
 		m_location = glGetUniformLocation(m_program, cname);
-		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::uniform] unknown uniform name '" << name << "'." << std::endl;
-			throw exception("gl::uniform", "could not find uniform location.");
-		}
+		validate_location(m_location, m_name);
 
 		glGetUniformIndices(m_program, 1, &cname, index.data());
 		// The index should never be invalid at this point.
@@ -82,10 +86,7 @@ namespace heatsink::gl {
 			m_name.resize(bracket);
 
 		m_location = glGetUniformLocation(m_program, m_name.c_str());
-		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::uniform] could not get location for uniform '" << m_name << "'." << std::endl;
-			throw exception("gl::uniform", "could not get uniform location from index.");
-		}
+		validate_location(m_location, m_name);
 	}
 
 	uniform::uniform(const uniform& u, std::size_t offset, std::size_t size)
@@ -95,10 +96,7 @@ namespace heatsink::gl {
 		auto name = m_name + "[" + std::to_string(m_base) + "]";
 
 		m_location = glGetUniformLocation(m_program, name.c_str());
-		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::uniform] could not get location for uniform '" << name << "'." << std::endl;
-			throw exception("gl::uniform::view", "cannot get subscripted uniform location.");
-		}
+		validate_location(m_location, name);
 	}
 
 	uniform::view uniform::make_view(std::size_t offset, std::size_t size) {

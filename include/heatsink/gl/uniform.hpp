@@ -198,7 +198,7 @@ namespace heatsink::gl {
 	void uniform::update(const T& t) {
 		assert(this->is_valid());
 		if (this->is_array())
-			throw exception("gl::uniform", "cannot assign array uniform to value.");
+			throw exception("gl::uniform", "cannot assign value to array uniform.");
 
 		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
 		static_assert(datatype != GL_NONE);
@@ -222,14 +222,14 @@ namespace heatsink::gl {
 		// The iterators could represent a single value, but they still imply
 		// multiple values, so enforce the array here.
 		if (!this->is_array())
-			throw exception("gl::uniform", "cannot assign uniform to iterator range.");
+			throw exception("gl::uniform", "cannot assign iterator range to uniform value.");
 
 		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
 		static_assert(datatype != GL_NONE);
 
 		if (auto size = std::distance(begin, end); size != m_size) {
-			std::cerr << "[heatsink::gl::uniform] cannot assign array of " << size;
-			std::cerr << " to uniform (view) with " << m_size << " elements." << std::endl;
+			std::cerr << "[heatsink::gl::uniform] cannot assign array (size=" << size;
+			std::cerr << ") to uniform view (size=" << m_size << ")." << std::endl;
 
 			throw exception("gl::uniform", "array size mismatch.");
 		}
