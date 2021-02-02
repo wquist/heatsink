@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <iostream>
 #include <iterator>
 #include <type_traits>
 
@@ -410,7 +411,8 @@ namespace heatsink::gl {
 		static_assert(std::is_standard_layout_v<T>);
 
 		auto size = std::distance(begin, end) * sizeof(T);
-		assert(size > 0);
+		if (size == 0)
+			throw exception("gl::buffer", "cannot create immutable buffer with no data.");
 
 		return buffer(target, size, address_of(*begin), access);
 	}
@@ -426,14 +428,16 @@ namespace heatsink::gl {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(std::is_standard_layout_v<T>);
 
-		assert(this->is_valid() && !this->is_immutable());
-		assert(m_base == 0);
+		assert(this->is_valid() && m_base == 0);
+		if (this->is_immutable())
+			throw exception("gl::buffer", "cannot reallocate immutable buffer.");
 
 		m_size = std::distance(begin, end) * sizeof(T);
-		assert(m_size >= 0);
 
 		this->bind();
-		glBufferData(this->get_target(), m_size, address_of(*begin), usage);
+		// Setting to size `0` may be device specific, just ignore if so.
+		if (m_size != 0)
+			glBufferData(this->get_target(), (GLsizeiptr)m_size, address_of(*begin), usage);
 	}
 
 	template<std::contiguous_iterator Iterator>
@@ -441,25 +445,58 @@ namespace heatsink::gl {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(std::is_standard_layout_v<T>);
 
-		assert(this->is_valid() && !this->is_empty());
-		assert(std::distance(begin, end) * sizeof(T) == m_size);
+		assert(this->is_valid());
+		if (m_base % sizeof(T)) {
+			std::cerr << "[heatsink::gl::buffer] buffer view (offset=" << m_base;
+			std::cerr << ") is not compatible with alignment of datatype (size=" << sizeof(T) << ")." << std::endl;
+
+			throw exception("gl::buffer", "bad buffer view alignment.");
+		}
+		if (auto size = std::distance(begin, end) * sizeof(T); size != m_size) {
+			std::cerr << "[heatsink::gl::buffer] cannot assign data (size=" << size;
+			std::cerr << ") to buffer (size=" << m_size << ")." << std::endl;
+
+			throw exception("gl::buffer", "data size mismatch.");
+		}
 
 		this->bind();
-		glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
+		// Again, there are no specific rules for updating `0` bytes.
+		if (m_size != 0)
+			glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
 	}
 
 	template<tensor T>
 	void buffer::clear(GLenum ifmt, const T& t, pixel_format format) {
-		assert(this->is_valid() && !this->is_empty());
-		assert(format_traits::is_sized(ifmt));
+		assert(this->is_valid());
+		// No need to do anything if the buffer is empty.
+		if (this->is_empty())
+			return;
+		
+		if (!format_traits::is_sized(ifmt)) {
+			std::cerr << "[heatsink::gl::buffer] specified format '" << ifmt;
+			std::cerr << "' has no associated size." << std::endl;
+
+			throw exception("gl::buffer", "bad internal format value.");
+		}
 
 		auto itype = format_traits::underlying_datatype(ifmt);
-		auto isize = size_of(itype);
+		if (is_packed(itype)) {
+			std::cerr << "[heatsink::gl::buffer] buffer cannot be cleared with packed format '" << itype;
+			std::cerr << "'." << std::endl;
+
+			throw exception("gl::buffer", "bad internal format value.");
+		}
 
 		// A packed type is represented by a single `itype` regardless of its
 		// extent (component count). Check to determine the appopriate size.
-		auto pixel_size = (is_packed(itype)) ? isize : isize * format_traits::extent(ifmt);
-		assert(!(m_base % pixel_size) && !(m_size % pixel_size));
+		auto pixel_size = size_of(itype) * format_traits::extent(ifmt);
+		// The base and size must be multiples of the "size" of the format (components * unit size).
+		if ((m_base % pixel_size) || (m_size % pixel_size)) {
+			std::cerr << "[heatsink::gl::buffer] buffer view (offset=" << m_base << ", size=" << m_size;
+			std::cerr << ") is not compatible with alignment of format '" << ifmt << "'." << std::endl;
+
+			throw exception("gl::buffer", "bad buffer view alignment.");
+		}
 
 		auto pfmt  = format.get();
 		auto ptype = format.get_datatype();
@@ -470,7 +507,10 @@ namespace heatsink::gl {
 
 	template<standard_layout T>
 	buffer::mapping<T> buffer::map(GLbitfield access) {
-		assert(this->is_valid() && !this->is_empty());
+		assert(this->is_valid());
+		if (this->is_empty())
+			throw exception("gl::buffer", "cannot map empty buffer.");
+
 		return mapping<T>(*this, access);
 	}
 
