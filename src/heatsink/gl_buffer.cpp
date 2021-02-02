@@ -10,14 +10,17 @@ namespace heatsink::gl {
 	: object<GL_BUFFER>(target), m_immutable{false}, m_base{}, m_size{} {}
 
 	buffer::buffer(GLenum target, std::size_t size, GLenum usage)
-	: object<GL_BUFFER>(target), m_immutable{false}, m_base{} {
+	: buffer(target) {
 		this->set(size, usage);
 	}
 
 	buffer::buffer(const buffer& b, std::size_t offset, std::size_t size)
-	: object<GL_BUFFER>(b), m_immutable{b.m_immutable}, m_base{b.m_base + offset}, m_size{size} {
+	: object<GL_BUFFER>(b), m_immutable{b.m_immutable} {
 		assert(this->is_valid());
-		assert(m_base + m_size <= b.m_base + b.m_size);
+		assert(offset + size <= b.m_size);
+
+		m_base = b.m_base + offset;
+		m_size = size;
 	}
 
 	buffer::buffer(GLenum target, std::size_t size, const void* data, GLbitfield access)
