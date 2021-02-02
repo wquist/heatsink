@@ -437,8 +437,9 @@ namespace heatsink::gl {
 		auto rank = texture_traits::rank(t);
 		if (t == GL_TEXTURE_CUBE_MAP) {
 			// Normal cube maps must be treated as separate 2D textures, based
-			// on the current offset of this view. Note that cubemap arrays use
-			// the normal 3D texture upload functions.
+			// on the current offset of this view. Note that while the 3D
+			// variant can be used in OpenGL 4.5, the old method is used to
+			// support all version, including 3.3 - 4.4.
 			t = GL_TEXTURE_CUBE_MAP_POSITIVE_X + m_base.z;
 			rank = 2;
 		}
