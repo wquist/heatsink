@@ -69,17 +69,26 @@ namespace heatsink::gl {
 	}
 
 	const std::string& attribute::get_name() const {
-		assert(this->is_valid() && this->is_annotated());
+		assert(this->is_valid());
+		if (!this->is_annotated())
+			throw exception("gl::attribute", "un-annotated attribute has no name.");
+
 		return m_name;
 	}
 
 	GLenum attribute::get_datatype() const {
-		assert(this->is_valid() && this->is_annotated());
+		assert(this->is_valid());
+		if (!this->is_annotated())
+			throw exception("gl::attribute", "un-annotated attribute has no datatype.");
+
 		return m_datatype;
 	}
 
 	std::size_t attribute::get_size() const {
-		assert(this->is_valid() && this->is_annotated());
+		assert(this->is_valid());
+		if (!this->is_annotated())
+			throw exception("gl::attribute", "un-annotated attribute has no array size.");
+
 		return m_size;
 	}
 }

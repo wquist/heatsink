@@ -196,7 +196,9 @@ namespace heatsink::gl {
 namespace heatsink::gl {
 	template<tensor T> requires (std::is_array_v<T> == false)
 	void uniform::update(const T& t) {
-		assert(this->is_valid() && !this->is_array());
+		assert(this->is_valid());
+		if (this->is_array())
+			throw exception("gl::uniform", "cannot assign array uniform to value.");
 
 		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
 		static_assert(datatype != GL_NONE);
@@ -216,9 +218,11 @@ namespace heatsink::gl {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(is_tensor_v<T>);
 		
+		assert(this->is_valid());
 		// The iterators could represent a single value, but they still imply
 		// multiple values, so enforce the array here.
-		assert(this->is_valid() && this->is_array());
+		if (!this->is_array())
+			throw exception("gl::uniform", "cannot assign uniform to iterator range.");
 
 		constexpr auto datatype = make_enum_v<tensor_decay_t<T>>;
 		static_assert(datatype != GL_NONE);

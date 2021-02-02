@@ -56,13 +56,16 @@ namespace heatsink::gl {
 		}
 
 		glGetUniformIndices(m_program, 1, &cname, index.data());
+		// The index should never be invalid at this point.
 		assert(index[0] != GL_INVALID_INDEX);
 
 		m_datatype = get_parameters(m_program, index, GL_UNIFORM_TYPE)[0];
 		m_size     = get_parameters(m_program, index, GL_UNIFORM_SIZE)[0];
 		// Ensure this uniform is not in a block (which is handled separately).
-		if (get_parameters(m_program, index, GL_UNIFORM_BLOCK_INDEX)[0] != -1)
+		if (get_parameters(m_program, index, GL_UNIFORM_BLOCK_INDEX)[0] != -1) {
+			std::cerr << "[heatsink::gl::uniform] uniform '" << m_name << "' is part of a uniform block." << std::endl;
 			throw exception("gl::uniform", "uniform cannot be part of a block.");
+		}
 	}
 
 	uniform::uniform(GLuint owner, GLuint index, GLuint type, std::size_t size, std::size_t namelen)
@@ -80,32 +83,36 @@ namespace heatsink::gl {
 
 		m_location = glGetUniformLocation(m_program, m_name.c_str());
 		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::uniform] could not get location for uniform index " << m_name << "." << std::endl;
+			std::cerr << "[heatsink::gl::uniform] could not get location for uniform '" << m_name << "'." << std::endl;
 			throw exception("gl::uniform", "could not get uniform location from index.");
 		}
 	}
 
 	uniform::uniform(const uniform& u, std::size_t offset, std::size_t size)
 	: m_program{u.m_program}, m_name{u.m_name}, m_datatype{u.m_datatype}, m_base{u.m_base + offset}, m_size{size} {
-		assert(m_base + m_size <= u.m_base + u.m_size);
-		if (!u.is_array())
-			throw exception("gl::uniform", "cannot make view of non-array uniform.");
-
 		// The name is not exposed in uniform view objects, but the new name
 		// must still be calculated to get the new location.
 		auto name = m_name + "[" + std::to_string(m_base) + "]";
 
 		m_location = glGetUniformLocation(m_program, name.c_str());
 		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::uniform] could not get location for uniform view '" << m_name;
-			std::cerr << "' with subscript base " << m_base << "." << std::endl;
-
+			std::cerr << "[heatsink::gl::uniform] could not get location for uniform '" << name << "'." << std::endl;
 			throw exception("gl::uniform::view", "cannot get subscripted uniform location.");
 		}
 	}
 
 	uniform::view uniform::make_view(std::size_t offset, std::size_t size) {
 		assert(this->is_valid());
+		if (!this->is_array())
+			throw exception("gl::uniform", "cannot make view of non-array uniform.");
+
+		if (offset + size > m_size) {
+			std::cerr << "[heatsink::gl::uniform] could not make view (offset=" << offset << ", size=" << size;
+			std::cerr << ") out of uniform '" << m_name << "' (size=" << m_size << ")." << std::endl;
+
+			throw exception("gl::uniform", "uniform view range out of bounds.");
+		}
+
 		return view(*this, offset, size);
 	}
 

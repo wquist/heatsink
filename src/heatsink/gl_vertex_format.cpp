@@ -1,7 +1,9 @@
 #include <heatsink/gl/vertex_format.hpp>
 
 #include <cassert>
+#include <iostream>
 
+#include <heatsink/error/exception.hpp>
 #include <heatsink/traits/memory.hpp>
 
 namespace heatsink::gl {
@@ -9,28 +11,32 @@ namespace heatsink::gl {
 	: vertex_format(remove_all_extents(e), {extent(e, 0), extent(e, 1)}) {}
 
 	vertex_format::vertex_format(GLenum datatype, extents es, packing pack)
-	: m_datatype{datatype}, m_packing{pack} {
-		// Allow extents to be specified shorthand (i.e. `1` when there is no
-		// array index), since a zero component/index has no meaning.
-		m_extents = glm::max(es, glm::uvec2(1));
+	: m_datatype{datatype}, m_extents{es}, m_packing{pack} {
+		if (m_extents[0] == 0 || m_extents[1] == 0)
+			throw exception("gl::vertex_format", "format extents cannot be zero.");
+		if (m_extents[0] > 4)
+			throw exception("gl::vertex_format", "format cannot specify more than 4 components.");
 
 		// Calculate the format stride before modifying index/component values.
 		auto format_size = size_of(m_datatype) * m_extents[0] * m_extents[1];
+		// The datatype should always be a valid GL type.
 		assert(format_size > 0);
 
 		if (m_packing.stride == 0)
 			m_packing.stride = format_size;
+		if (format_size > m_packing.stride) {
+			std::cerr << "calculated format size (size=" << format_size << ") is greater than specified stride";
+			std::cerr << " (stride=" << m_packing.stride << ")." << std::endl;
+
+			throw exception("gl::vertex_format", "invalid stride specified for format.");
+		}
+
 		// If the format uses a double type, each component takes up twice as
 		// much space. Because an attribute slot can only hold four float
 		// values, only two double components can be represented per index.
+		// FIXME: should this be here, or in vertex_array?
 		if (m_datatype == GL_DOUBLE)
 			m_extents[1] *= 2;
-
-		// Check some basic constraints to ensure the passed parameters and
-		// ranges agree with each other.
-		assert(m_extents[0] > 0 && m_extents[0] <= 4);
-		assert(m_extents[1] > 0);
-		assert(format_size <= m_packing.stride);
 	}
 
 	GLenum vertex_format::get_datatype() const {

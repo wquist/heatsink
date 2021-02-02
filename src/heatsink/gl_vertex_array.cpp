@@ -1,9 +1,18 @@
 #include <heatsink/gl/vertex_array.hpp>
 
 #include <cassert>
+#include <iostream>
 
+#include <heatsink/error/exception.hpp>
 #include <heatsink/traits/memory.hpp>
 #include <heatsink/traits/name.hpp>
+
+namespace {
+	void validate_array_buffer(GLenum target) {
+		if (target != GL_ARRAY_BUFFER)
+			throw heatsink::exception("gl::vertex_array", "attribute buffer must be GL_ARRAY_BUFFER.");
+	}
+}
 
 namespace heatsink::gl {
 	vertex_array::vertex_array()
@@ -11,14 +20,14 @@ namespace heatsink::gl {
 
 	void vertex_array::set_attribute(const attribute& a, vertex_format f, buffer::const_view v) {
 		assert(this->is_valid());
-		assert(v.get_target() == GL_ARRAY_BUFFER);
+		validate_array_buffer(v.get_target());
 
 		this->set_attribute(a, f, v, nullptr);
 	}
 
 	void vertex_array::set_attribute(const attribute& a, vertex_format f, buffer::const_view v, conversion conv) {
 		assert(this->is_valid());
-		assert(v.get_target() == GL_ARRAY_BUFFER);
+		validate_array_buffer(v.get_target());
 
 		this->set_attribute(a, f, v, &conv);
 	}
@@ -32,7 +41,8 @@ namespace heatsink::gl {
 
 	void vertex_array::set_elements(const buffer& b) {
 		assert(this->is_valid());
-		assert(b.get_target() == GL_ELEMENT_ARRAY_BUFFER);
+		if (b.get_target() != GL_ELEMENT_ARRAY_BUFFER)
+			throw exception("gl::vertex_array", "element buffer must be GL_ELEMENT_ARRAY_BUFFER.");
 
 		this->bind();
 		b.bind();
@@ -51,14 +61,17 @@ namespace heatsink::gl {
 		auto packing = f.get_packing();
 		auto offset  = v.get_offset() + packing.offset;
 
-		auto base    = a.get();
-		auto indices = a.get_size();
-		assert(!a.is_annotated() || indices == extents[1]);
+		if (a.is_annotated() && a.get_size() != extents[1]) {
+			std::cerr << "attribute annotations (size=" << a.get_size() << ") do not match format extents";
+			std::cerr << " (size=" << extents[1] << ")." << std::endl;
+
+			throw exception("gl::vertex_array", "attribute array size mismatch.");
+		}
 
 		this->bind();
 		v.bind();
 
-		for (auto i = 0; i != indices; ++i) {
+		for (auto i = 0; i != extents[1]; ++i) {
 			auto cs = extents[0];
 			if (type == GL_DOUBLE) {
 				// In a `dvec3`, the components must be uploaded in two pieces;
@@ -70,7 +83,7 @@ namespace heatsink::gl {
 					cs = 2;
 			}
 
-			auto index = base + i;
+			auto index = a.get() + i;
 			glEnableVertexAttribArray(index);
 
 			if (!conv) {
