@@ -1,7 +1,5 @@
 #include <heatsink/gl/texture.hpp>
 
-#include <tuple>
-
 namespace {
 	//
 }
@@ -49,9 +47,10 @@ namespace heatsink::gl {
 
 		// Extra size dimensions have a value of `1`, while extra offset
 		// dimensions use `0` (size vs. position measurements).
-		auto [bs, es] = std::make_tuple(offset.get(0), size.get(1));
-		assert(!glm::any(glm::greaterThan(bs + es, t.m_extents)));
+		auto bs = offset.get(0);
+		auto es = size.get(1);
 
+		assert(!glm::any(glm::greaterThan(bs + es, t.m_extents)));
 		m_base    = t.m_base + bs;
 		m_extents = es;
 	}

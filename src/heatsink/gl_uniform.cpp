@@ -1,7 +1,6 @@
 #include <heatsink/gl/uniform.hpp>
 
 #include <numeric>
-#include <tuple>
 #include <vector>
 
 #include <heatsink/gl/program.hpp>
@@ -24,9 +23,10 @@ namespace {
 
 namespace heatsink::gl {
 	std::map<std::string, uniform> uniform::from_program(const program& p) {
+		auto owner = p.get();
 		std::map<std::string, uniform> results;
-		auto [owner, count] = std::tuple<GLuint, GLint>{p.get(), 0};
 
+		GLint count;
 		glGetProgramiv(owner, GL_ACTIVE_UNIFORMS, &count);
 		std::vector<GLuint> indices(count);
 
