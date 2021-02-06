@@ -315,7 +315,7 @@ namespace heatsink::gl {
 		 * implicitly specifies `GL_MAP_READ_BIT` for the access. Note that a
 		 * mapping created from a constant view may not be writable.
 		 */
-		mapping(const const_view&, GLbitfield access);
+		mapping(const const_view&, GLbitfield access = 0);
 		/**
 		 * Create a new mutable mapping from the specified buffer view. The view
 		 * may be readable, writable, or both. Note, though, that a read-only
@@ -334,7 +334,7 @@ namespace heatsink::gl {
 
 	private:
 		// Allow constant and mutable views to be constructed the same way.
-		mapping(const buffer&, GLbitfield access);
+		mapping(const buffer&, GLbitfield access, bool readonly);
 
 	public:
 		/**
@@ -541,17 +541,15 @@ namespace heatsink::gl {
 
 	template<standard_layout T>
 	buffer::mapping<T>::mapping(const const_view& other, GLbitfield access)
-	: mapping<T>((const buffer&)other, access | GL_MAP_READ_BIT) {
-		assert(!(m_access & GL_MAP_WRITE_BIT));
-	}
+	: mapping<T>(other, access | GL_MAP_READ_BIT, true) {}
 
 	template<standard_layout T>
 	buffer::mapping<T>::mapping(const view& other, GLbitfield access)
-	: mapping<T>((const buffer&)other, access | GL_MAP_WRITE_BIT) {}
+	: mapping<T>((const buffer&)other, access, false) {}
 
 	template<standard_layout T>
 	buffer::mapping<T>::mapping(mapping&& other) noexcept
-	: basic_view(std::move(other)), m_data{other.m_data} {
+	: basic_view(std::move(other)), m_data{other.m_data}, m_access{other.m_access} {
 		other.m_data = nullptr;
 	}
 
@@ -571,21 +569,32 @@ namespace heatsink::gl {
 			glUnmapBuffer(this->get_target());
 		}
 
-		m_data = other.m_data;
+		m_data   = other.m_data;
+		m_access = other.m_access;
 
 		other.m_data = nullptr;
 		return *this;
 	}
 
 	template<standard_layout T>
-	buffer::mapping<T>::mapping(const buffer& other, GLbitfield access)
+	buffer::mapping<T>::mapping(const buffer& other, GLbitfield access, bool readonly)
 	: basic_view<true>(other), m_access{access} {
-		// The view should be aligned relative to the size of the mapping type.
+		if (!(access & GL_MAP_READ_BIT) && !(access & GL_MAP_WRITE_BIT))
+			throw exception("gl::buffer::mapping", "mapping must be either readable or writable.");
+
 		auto offset = this->get_offset();
-		assert(!(offset % sizeof(T)) && !(basic_view::get_size() % sizeof(T)));
+		auto size   = basic_view::get_size();
+
+		// The view should be aligned relative to the size of the mapping type.
+		if ((offset % sizeof(T)) || (size % sizeof(T))) {
+			std::cerr << "[heatsink::gl::buffer::mapping] buffer mapping (offset=" << offset << ", size=" << size;
+			std::cerr << ") is not compatible with alignment of data type (size=" << sizeof(T) << ")." << std::endl;
+
+			throw exception("gl::buffer::mapping", "bad buffer mapping alignment.");
+		}
 
 		this->bind();
-		m_data = glMapBufferRange(this->get_target(), offset, basic_view::get_size(), access);
+		m_data = glMapBufferRange(this->get_target(), offset, size, access);
 		
 		// This likely occurs because a view of the buffer is already mapped.
 		if (!m_data)
@@ -609,7 +618,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::begin() const {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_READ_BIT);
+		if (!(m_access & GL_MAP_READ_BIT))
+			throw exception("gl::buffer::maping", "mapping is not readable.");
 
 		return m_data;
 	}
@@ -617,7 +627,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	typename buffer::mapping<T>::const_iterator buffer::mapping<T>::end() const {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_READ_BIT);
+		if (!(m_access & GL_MAP_READ_BIT))
+			throw exception("gl::buffer::maping", "mapping is not readable.");
 		
 		return m_data;
 	}
@@ -625,7 +636,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::begin() {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_WRITE_BIT);
+		if (!(m_access & GL_MAP_WRITE_BIT))
+			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant iterator.");
 
 		return m_data;
 	}
@@ -633,7 +645,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::end() {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_WRITE_BIT);
+		if (!(m_access & GL_MAP_WRITE_BIT))
+			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant iterator.");
 
 		return (m_data + this->get_size());
 	}
@@ -652,7 +665,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	const T* buffer::mapping<T>::get_data() const {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_READ_BIT);
+		if (!(m_access & GL_MAP_READ_BIT))
+			throw exception("gl::buffer::maping", "mapping is not readable.");
 
 		return m_data;
 	}
@@ -660,7 +674,8 @@ namespace heatsink::gl {
 	template<standard_layout T>
 	T* buffer::mapping<T>::get_data() {
 		assert(this->is_valid());
-		assert(m_access & GL_MAP_WRITE_BIT);
+		if (!(m_access & GL_MAP_WRITE_BIT))
+			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant data pointer.");
 
 		return m_data;
 	}
