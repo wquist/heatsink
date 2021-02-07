@@ -1,7 +1,7 @@
 #include <heatsink/gl/program.hpp>
 
 #include <cassert>
-#include <ostream>
+#include <iostream>
 
 #include <heatsink/error/compile.hpp>
 #include <heatsink/error/debug.hpp>

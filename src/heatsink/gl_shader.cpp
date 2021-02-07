@@ -2,7 +2,7 @@
 
 #include <cassert>
 #include <fstream>
-#include <ostream>
+#include <iostream>
 
 #include <heatsink/error/compile.hpp>
 #include <heatsink/error/debug.hpp>
@@ -15,7 +15,7 @@ namespace {
 		if (!data.is_open()) {
 			heatsink::make_error_stream("gl::shader")
 				<< "unknown path "
-				<< "\"" << path.to_string() << "\"." << std::endl;
+				<< "\"" << path.string() << "\"." << std::endl;
 			
 			throw heatsink::exception("gl::shader", "could not open path.");
 		}
@@ -37,11 +37,11 @@ namespace {
 		else if (ext == ".geom") return GL_GEOMETRY_SHADER;
 		else if (ext == ".comp") return GL_COMPUTE_SHADER;
 		else {
-			make_error_stream("gl::shader")
+			heatsink::make_error_stream("gl::shader")
 				<< "unknown file extension "
 				<< "\"" << ext.string() << "\"." << std::endl;
 			
-			throw exception("gl::shader", "unknown GLSL source extension.");
+			throw heatsink::exception("gl::shader", "unknown GLSL source extension.");
 		}
 	}
 }
