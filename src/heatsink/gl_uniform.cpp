@@ -15,7 +15,10 @@ namespace {
 
 	void validate_location(GLint location, const std::string& name) {
 		if (location == -1) {
-			std::cerr << "[heatsink::gl::uniform] unknown uniform name '" << name << "'." << std::endl;
+			heatsink::make_error_stream("gl::uniform")
+				<< "unknown uniform name "
+				<< "\"" << name << "\"." << std::endl;
+			
 			throw heatsink::exception("gl::uniform", "could not find uniform location.");
 		}
 	}
@@ -67,7 +70,11 @@ namespace heatsink::gl {
 		m_size     = get_parameters(m_program, index, GL_UNIFORM_SIZE)[0];
 		// Ensure this uniform is not in a block (which is handled separately).
 		if (get_parameters(m_program, index, GL_UNIFORM_BLOCK_INDEX)[0] != -1) {
-			std::cerr << "[heatsink::gl::uniform] uniform '" << m_name << "' is part of a uniform block." << std::endl;
+			make_error_stream("gl::uniform")
+				<< "uniform "
+				<< "\"" << m_name << "\" "
+				<< "is part of a uniform block." << std::endl;
+			
 			throw exception("gl::uniform", "uniform cannot be part of a block.");
 		}
 	}
@@ -90,7 +97,25 @@ namespace heatsink::gl {
 	}
 
 	uniform::uniform(const uniform& u, std::size_t offset, std::size_t size)
-	: m_program{u.m_program}, m_name{u.m_name}, m_datatype{u.m_datatype}, m_base{u.m_base + offset}, m_size{size} {
+	: m_program{u.m_program}, m_name{u.m_name}, m_datatype{u.m_datatype} {
+		assert(this->is_valid());
+		if (!this->is_array())
+			throw exception("gl::uniform", "cannot make view of non-array uniform.");
+		
+		if (offset + size > m_size) {
+			make_error_stream("gl::uniform")
+				<< "could not make view "
+				<< "(offset=" << offset << ", size=" << size << ") "
+				<< "out of uniform "
+				<< "\"" << m_name << "\" "
+				<< "(size=" << u.m_size << ")." << std::endl;
+
+			throw exception("gl::uniform", "uniform view range out of bounds.");
+		}
+
+		m_base = u.m_base + offset;
+		m_size = size;
+
 		// The name is not exposed in uniform view objects, but the new name
 		// must still be calculated to get the new location.
 		auto name = m_name + "[" + std::to_string(m_base) + "]";
@@ -101,16 +126,6 @@ namespace heatsink::gl {
 
 	uniform::view uniform::make_view(std::size_t offset, std::size_t size) {
 		assert(this->is_valid());
-		if (!this->is_array())
-			throw exception("gl::uniform", "cannot make view of non-array uniform.");
-
-		if (offset + size > m_size) {
-			std::cerr << "[heatsink::gl::uniform] could not make view (offset=" << offset << ", size=" << size;
-			std::cerr << ") out of uniform '" << m_name << "' (size=" << m_size << ")." << std::endl;
-
-			throw exception("gl::uniform", "uniform view range out of bounds.");
-		}
-
 		return view(*this, offset, size);
 	}
 

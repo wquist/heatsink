@@ -1,11 +1,12 @@
 #include <heatsink/gl/attribute.hpp>
 
 #include <cassert>
-#include <iostream>
 #include <numeric>
+#include <ostream>
 #include <tuple>
 #include <vector>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/gl/program.hpp>
 #include <heatsink/traits/shader.hpp>
@@ -49,7 +50,10 @@ namespace heatsink::gl {
 	: m_name{std::move(name)}, m_datatype{type}, m_size(size) {
 		m_location = glGetAttribLocation(p.get(), m_name.c_str());
 		if (m_location == -1) {
-			std::cerr << "[heatsink::gl::attribute] unknown attribute name '" << m_name << "'." << std::endl;
+			make_error_stream("gl::attribute")
+				<< "unknown attribute name "
+				<< "\"" << m_name << "\"." << std::endl;
+			
 			throw exception("gl::attribute", "could not find attribute location.");
 		}
 	}

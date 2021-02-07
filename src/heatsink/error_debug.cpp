@@ -1,6 +1,14 @@
 #include <heatsink/error/debug.hpp>
 
+#include <iostream>
+
 using namespace std::string_literals;
+
+namespace heatsink {
+	std::ostream& make_error_stream(const std::string& where) {
+		return (std::cerr << "[heatsink::" << where << "] ");
+	}
+}
 
 namespace heatsink::gl {
 	std::string to_string(GLenum e) {

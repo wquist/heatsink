@@ -2,10 +2,11 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <iostream>
 #include <iterator>
+#include <ostream>
 #include <type_traits>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/gl/object.hpp>
 #include <heatsink/gl/pixel_format.hpp>
@@ -436,7 +437,7 @@ namespace heatsink::gl {
 
 		this->bind();
 		// Setting to size `0` may be device specific, just ignore if so.
-		if (m_size != 0)
+		if (!this->is_empty())
 			glBufferData(this->get_target(), (GLsizeiptr)m_size, address_of(*begin), usage);
 	}
 
@@ -447,21 +448,27 @@ namespace heatsink::gl {
 
 		assert(this->is_valid());
 		if (m_base % sizeof(T)) {
-			std::cerr << "[heatsink::gl::buffer] buffer view (offset=" << m_base;
-			std::cerr << ") is not compatible with alignment of datatype (size=" << sizeof(T) << ")." << std::endl;
+			make_error_stream("gl::buffer")
+				<< "buffer view "
+				<< "(offset=" << m_base << ") "
+				<< "is not compatiable with alignment of datatype "
+				<< "(size=" << sizeof(T) << ")." << std::endl;
 
 			throw exception("gl::buffer", "bad buffer view alignment.");
 		}
 		if (auto size = std::distance(begin, end) * sizeof(T); size != m_size) {
-			std::cerr << "[heatsink::gl::buffer] cannot assign data (size=" << size;
-			std::cerr << ") to buffer (size=" << m_size << ")." << std::endl;
+			make_error_stream("gl::buffer")
+				<< "cannot assign data "
+				<< "(size=" << size << ") "
+				<< "to buffer"
+				<< "(size=" << m_size << ")." << std::endl;
 
 			throw exception("gl::buffer", "data size mismatch.");
 		}
 
 		this->bind();
 		// Again, there are no specific rules for updating `0` bytes.
-		if (m_size != 0)
+		if (!this->is_empty())
 			glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
 	}
 
@@ -473,16 +480,19 @@ namespace heatsink::gl {
 			return;
 		
 		if (!format_traits::is_sized(ifmt)) {
-			std::cerr << "[heatsink::gl::buffer] specified format '" << ifmt;
-			std::cerr << "' has no associated size." << std::endl;
+			make_error_stream("gl::buffer")
+				<< "specified format "
+				<< to_string(ifmt) << " "
+				<< "has no associated size." << std::endl;
 
 			throw exception("gl::buffer", "bad internal format value.");
 		}
 
 		auto itype = format_traits::underlying_datatype(ifmt);
 		if (is_packed(itype)) {
-			std::cerr << "[heatsink::gl::buffer] buffer cannot be cleared with packed format '" << itype;
-			std::cerr << "'." << std::endl;
+			make_error_stream("gl::buffer")
+				<< "buffer cannot be cleared with packed datatype "
+				<< to_string(itype) << "." << std::endl;
 
 			throw exception("gl::buffer", "bad internal format value.");
 		}
@@ -492,8 +502,11 @@ namespace heatsink::gl {
 		auto pixel_size = size_of(itype) * format_traits::extent(ifmt);
 		// The base and size must be multiples of the "size" of the format (components * unit size).
 		if ((m_base % pixel_size) || (m_size % pixel_size)) {
-			std::cerr << "[heatsink::gl::buffer] buffer view (offset=" << m_base << ", size=" << m_size;
-			std::cerr << ") is not compatible with alignment of format '" << ifmt << "'." << std::endl;
+			make_error_stream("gl::buffer")
+				<< "buffer view "
+				<< "(offset=" << m_base << ", size=" << m_size << ") "
+				<< "is not compatible with alignment of format "
+				<< to_string(ifmt) << "." << std::endl;
 
 			throw exception("gl::buffer", "bad buffer view alignment.");
 		}
@@ -587,8 +600,11 @@ namespace heatsink::gl {
 
 		// The view should be aligned relative to the size of the mapping type.
 		if ((offset % sizeof(T)) || (size % sizeof(T))) {
-			std::cerr << "[heatsink::gl::buffer::mapping] buffer mapping (offset=" << offset << ", size=" << size;
-			std::cerr << ") is not compatible with alignment of data type (size=" << sizeof(T) << ")." << std::endl;
+			make_error_stream("gl::buffer::mapping")
+				<< "buffer mapping "
+				<< "(offset=" << offset << ", size=" << size << ") "
+				<< "is not compatible with alignment of datatype "
+				<< "(size=" << sizeof(T) << ")." << std::endl;
 
 			throw exception("gl::buffer::mapping", "bad buffer mapping alignment.");
 		}

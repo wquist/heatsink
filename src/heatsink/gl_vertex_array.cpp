@@ -1,8 +1,9 @@
 #include <heatsink/gl/vertex_array.hpp>
 
 #include <cassert>
-#include <iostream>
+#include <ostream>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/memory.hpp>
 #include <heatsink/traits/name.hpp>
@@ -62,8 +63,11 @@ namespace heatsink::gl {
 		auto offset  = v.get_offset() + packing.offset;
 
 		if (a.is_annotated() && a.get_size() != extents[1]) {
-			std::cerr << "attribute annotations (size=" << a.get_size() << ") do not match format extents";
-			std::cerr << " (size=" << extents[1] << ")." << std::endl;
+			make_error_stream("gl::vertex_array")
+				<< "attribute annotations "
+				<< "(size=" << a.get_size() << ") "
+				<< "do not match format extents "
+				<< "(size=" << extents[1] << ")." << std::endl;
 
 			throw exception("gl::vertex_array", "attribute array size mismatch.");
 		}

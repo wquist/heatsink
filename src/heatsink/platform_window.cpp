@@ -1,7 +1,7 @@
 #include <heatsink/platform/window.hpp>
 
 #include <cassert>
-#include <iostream>
+#include <ostream>
 #include <tuple>
 
 #include <glfw/glfw3.h>
@@ -52,7 +52,7 @@ namespace heatsink {
 			if (type == GL_DEBUG_TYPE_ERROR || sev == GL_DEBUG_SEVERITY_HIGH)
 				throw exception("platform", out);
 			else
-				std::cerr << "[heatsink::platform] " << out << std::endl;
+				make_error_stream("platform") << out << std::endl;
 		}
 	};
 }
@@ -74,7 +74,7 @@ namespace heatsink {
 
 	window::window(const context& c, const std::string& name, extents e, bool resize) {
 		// FIXME: some sizes may be too small for the WM; try to catch this.
-		assert(e.x && e.y);
+		//assert(e.x && e.y);
 		
 		// Set up context-related parameters.
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, (int)c.get_version().major);
@@ -113,7 +113,9 @@ namespace heatsink {
 
 	window::window(window&& other) noexcept
 	: m_handle{other.m_handle}, m_extents{other.m_extents}, m_framebuffer_extents{other.m_framebuffer_extents} {
-		glfwSetWindowUserPointer((GLFWwindow*)m_handle, (void*)this);
+		if (m_handle)
+			glfwSetWindowUserPointer((GLFWwindow*)m_handle, (void*)this);
+
 		other.m_handle = nullptr;
 	}
 
@@ -130,9 +132,10 @@ namespace heatsink {
 		m_extents             = other.m_extents;
 		m_framebuffer_extents = other.m_framebuffer_extents;
 
-		glfwSetWindowUserPointer((GLFWwindow*)m_handle, (void*)this);
+		if (m_handle)
+			glfwSetWindowUserPointer((GLFWwindow*)m_handle, (void*)this);
+		
 		other.m_handle = nullptr;
-
 		return *this;
 	}
 
@@ -140,12 +143,12 @@ namespace heatsink {
 	: m_handle{nullptr} {}
 
 	void window::use() const {
-		assert(m_handle);
+		assert(this->is_valid());
 		glfwMakeContextCurrent((GLFWwindow*)m_handle);
 	}
 
 	bool window::flush_buffers() const {
-		assert(m_handle);
+		assert(this->is_valid());
 		auto* wh = (GLFWwindow*)m_handle;
 
 		glfwSwapBuffers(wh);
@@ -157,6 +160,8 @@ namespace heatsink {
 	}
 
 	void window::flush_errors() const {
+		assert(this->is_valid());
+
 		// `glGetError()` acts like a stack; multiple errors can be queued, the
 		// end signified by a `GL_NO_ERROR` return value.
 		for (GLenum e; (e = glGetError()) != GL_NO_ERROR;) {
@@ -170,7 +175,7 @@ namespace heatsink {
 	}
 
 	void* window::get() const {
-		assert(m_handle);
+		assert(this->is_valid());
 		return m_handle;
 	}
 

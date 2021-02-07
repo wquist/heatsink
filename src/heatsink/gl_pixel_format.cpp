@@ -1,8 +1,9 @@
 #include <heatsink/gl/pixel_format.hpp>
 
 #include <cassert>
-#include <iostream>
+#include <ostream>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/format.hpp>
 #include <heatsink/traits/memory.hpp>
@@ -11,7 +12,11 @@ namespace {
 	// A format passed to "format_traits::reverse()" may not always be reversible.
 	void validate_reverse(GLenum result) {
 		if (result == GL_NONE) {
-			std::cerr << "[heatsink::gl::pixel_format] image format '" << result << "' is not reversible." << std::endl;
+			heatsink::make_error_stream("gl::pixel_format")
+				<< "image format "
+				<< heatsink::gl::to_string(result) << " "
+				<< "is not reversible." << std::endl;
+			
 			throw heatsink::exception("gl::pixel_format", "could not reverse image format.");
 		}
 	}

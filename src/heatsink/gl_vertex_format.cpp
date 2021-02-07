@@ -1,8 +1,9 @@
 #include <heatsink/gl/vertex_format.hpp>
 
 #include <cassert>
-#include <iostream>
+#include <ostream>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/traits/memory.hpp>
 
@@ -25,8 +26,11 @@ namespace heatsink::gl {
 		if (m_packing.stride == 0)
 			m_packing.stride = format_size;
 		if (format_size > m_packing.stride) {
-			std::cerr << "calculated format size (size=" << format_size << ") is greater than specified stride";
-			std::cerr << " (stride=" << m_packing.stride << ")." << std::endl;
+			make_error_stream("gl::vertex_format")
+				<< "calculated format size "
+				<< "(size=" << format_size << ") "
+				<< "is greater than specified stride"
+				<< "(stride=" << m_packing.stride << ")." << std::endl;
 
 			throw exception("gl::vertex_format", "invalid stride specified for format.");
 		}

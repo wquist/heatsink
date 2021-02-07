@@ -2,12 +2,13 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <iostream>
 #include <iterator>
 #include <map>
+#include <ostream>
 #include <string>
 #include <type_traits>
 
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 #include <heatsink/platform/gl.hpp>
 #include <heatsink/traits/enum.hpp>
@@ -204,8 +205,11 @@ namespace heatsink::gl {
 		static_assert(datatype != GL_NONE);
 
 		if (!shader_traits::is_assignable(m_datatype, datatype)) {
-			std::cerr << "[heatsink::gl::uniform] cannot assign '" << datatype;
-			std::cerr << "' to '" << m_datatype << "'." << std::endl;
+			make_error_stream("gl::uniform")
+				<< "cannot assign datatype "
+				<< to_string(datatype) << " "
+				<< "to uniform type "
+				<< to_string(m_datatype) << "." << std::endl;
 
 			throw exception("gl::uniform", "type mismatch.");
 		}
@@ -228,14 +232,20 @@ namespace heatsink::gl {
 		static_assert(datatype != GL_NONE);
 
 		if (auto size = std::distance(begin, end); size != m_size) {
-			std::cerr << "[heatsink::gl::uniform] cannot assign array (size=" << size;
-			std::cerr << ") to uniform view (size=" << m_size << ")." << std::endl;
+			make_error_stream("gl::uniform")
+				<< "cannot assign array "
+				<< "(size=" << size << ") "
+				<< "to uniform view "
+				<< "(size=" << m_size << ")." << std::endl;
 
 			throw exception("gl::uniform", "array size mismatch.");
 		}
 		if (!shader_traits::is_assignable(m_datatype, datatype)) {
-			std::cerr << "[heatsink::gl::uniform] cannot assign '" << datatype;
-			std::cerr << "' element to '" << m_datatype << "' array." << std::endl;
+			make_error_stream("gl::uniform")
+				<< "cannot assign datatype"
+				<< to_string(datatype) << " "
+				<< "to uniform array of type "
+				<< to_string(m_datatype) << "." << std::endl;
 
 			throw exception("gl::uniform", "type mismatch.");
 		}

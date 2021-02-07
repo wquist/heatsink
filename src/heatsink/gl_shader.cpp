@@ -1,23 +1,23 @@
 #include <heatsink/gl/shader.hpp>
 
 #include <cassert>
-#include <iostream>
 #include <fstream>
+#include <ostream>
 
 #include <heatsink/error/compile.hpp>
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 
-using namespace std::string_literals;
-
 namespace {
-	using exception = heatsink::exception;
-
 	// Read the contents of the specified file.
 	std::string read_string(const std::filesystem::path& path) {
 		std::ifstream data(path.native());
 		if (!data.is_open()) {
-			std::cerr << "[heatsink::gl::shader] unknown path '" << path.string() << "'" << std::endl;
-			throw exception("gl::shader", "could not open path.");
+			heatsink::make_error_stream("gl::shader")
+				<< "unknown path "
+				<< "\"" << path.to_string() << "\"." << std::endl;
+			
+			throw heatsink::exception("gl::shader", "could not open path.");
 		}
 
 		std::istreambuf_iterator<char> begin{data};
@@ -37,7 +37,10 @@ namespace {
 		else if (ext == ".geom") return GL_GEOMETRY_SHADER;
 		else if (ext == ".comp") return GL_COMPUTE_SHADER;
 		else {
-			std::cerr << "[heatsink::gl::shader] unknown file extension '" << ext.string() << "'." << std::endl;
+			make_error_stream("gl::shader")
+				<< "unknown file extension "
+				<< "\"" << ext.string() << "\"." << std::endl;
+			
 			throw exception("gl::shader", "unknown GLSL source extension.");
 		}
 	}
@@ -100,7 +103,7 @@ namespace heatsink::gl {
 
 		GLint result;
 		if (glGetShaderiv(m_name, GL_COMPILE_STATUS, &result); result != GL_TRUE) {
-			std::cerr << "[heatsink::gl::shader] shader compilation errors:" << std::endl;
+			make_error_stream("gl::shader") << "shader compile errors:" << std::endl;
 			write_shader_log(std::cerr, m_name, from);
 
 			throw exception("gl::shader", "could not compile shader source.");

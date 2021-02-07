@@ -1,9 +1,10 @@
 #include <heatsink/gl/program.hpp>
 
 #include <cassert>
-#include <iostream>
+#include <ostream>
 
 #include <heatsink/error/compile.hpp>
+#include <heatsink/error/debug.hpp>
 #include <heatsink/error/exception.hpp>
 
 namespace {
@@ -88,7 +89,10 @@ namespace heatsink::gl {
 	attribute program::get_attribute(const std::string& name) const {
 		assert(this->is_valid());
 		if (!m_attributes.count(name)) {
-			std::cerr << "[heatsink::gl::prorgam] could not find attribute '" << name << "'." << std::endl;
+			make_error_stream("gl::program")
+				<< "could not find attribute "
+				<< "\"" << name << "\"." << std::endl;
+			
 			throw exception("gl::program", "attribute does not exist.");
 		}
 
@@ -98,7 +102,10 @@ namespace heatsink::gl {
 	uniform program::get_uniform(const std::string& name) {
 		assert(this->is_valid());
 		if (!m_uniforms.count(name)) {
-			std::cerr << "[heatsink::gl::program] could not find uniform '" << name << "'." << std::endl;
+			make_error_stream("gl::program")
+				<< "could not find uniform "
+				<< "\"" << name << "\"." << std::endl;
+			
 			throw exception("gl::program", "uniform does not exist.");
 		}
 
@@ -113,7 +120,7 @@ namespace heatsink::gl {
 
 		GLint result;
 		if (glGetProgramiv(m_name, GL_LINK_STATUS, &result); result != GL_TRUE) {
-			std::cerr << "[heatsink::gl::program] program link errors:" << std::endl;
+			make_error_stream("gl::program") << "program link errors:" << std::endl;
 			write_program_log(std::cerr, m_name, from);
 
 			throw exception("gl::program", "could not link shader sources.");
