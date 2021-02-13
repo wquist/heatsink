@@ -434,11 +434,12 @@ namespace heatsink::gl {
 			throw exception("gl::buffer", "cannot reallocate immutable buffer.");
 
 		m_size = std::distance(begin, end) * sizeof(T);
+		// Setting to size `0` may be device specific, just ignore if so.
+		if (this->is_empty())
+			return;
 
 		this->bind();
-		// Setting to size `0` may be device specific, just ignore if so.
-		if (!this->is_empty())
-			glBufferData(this->get_target(), (GLsizeiptr)m_size, address_of(*begin), usage);
+		glBufferData(this->get_target(), (GLsizeiptr)m_size, address_of(*begin), usage);
 	}
 
 	template<std::contiguous_iterator Iterator>
@@ -447,6 +448,7 @@ namespace heatsink::gl {
 		static_assert(std::is_standard_layout_v<T>);
 
 		assert(this->is_valid());
+
 		if (m_base % sizeof(T)) {
 			make_error_stream("gl::buffer")
 				<< "buffer view "
@@ -460,24 +462,23 @@ namespace heatsink::gl {
 			make_error_stream("gl::buffer")
 				<< "cannot assign data "
 				<< "(size=" << size << ") "
-				<< "to buffer"
+				<< "to buffer "
 				<< "(size=" << m_size << ")." << std::endl;
 
 			throw exception("gl::buffer", "data size mismatch.");
 		}
 
-		this->bind();
 		// Again, there are no specific rules for updating `0` bytes.
-		if (!this->is_empty())
-			glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
+		if (this->is_empty())
+			return;
+
+		this->bind();
+		glBufferSubData(this->get_target(), m_base, m_size, address_of(*begin));
 	}
 
 	template<tensor T>
 	void buffer::clear(GLenum ifmt, const T& t, pixel_format format) {
 		assert(this->is_valid());
-		// No need to do anything if the buffer is empty.
-		if (this->is_empty())
-			return;
 		
 		if (!format_traits::is_sized(ifmt)) {
 			make_error_stream("gl::buffer")
@@ -497,8 +498,7 @@ namespace heatsink::gl {
 			throw exception("gl::buffer", "bad internal format value.");
 		}
 
-		// A packed type is represented by a single `itype` regardless of its
-		// extent (component count). Check to determine the appopriate size.
+		// No need to check for packed types as there are not allowed here.
 		auto pixel_size = size_of(itype) * format_traits::extent(ifmt);
 		// The base and size must be multiples of the "size" of the format (components * unit size).
 		if ((m_base % pixel_size) || (m_size % pixel_size)) {
@@ -510,6 +510,10 @@ namespace heatsink::gl {
 
 			throw exception("gl::buffer", "bad buffer view alignment.");
 		}
+
+		// Check for errors as normal, but do nothing if empty.
+		if (this->is_empty())
+			return;
 
 		auto pfmt  = format.get();
 		auto ptype = format.get_datatype();
@@ -549,7 +553,7 @@ namespace heatsink::gl {
 	template<bool Const>
 	std::size_t buffer::basic_view<Const>::get_offset() const {
 		assert(this->is_valid());
-		return buffer::get_base();
+		return this->get_base();
 	}
 
 	template<standard_layout T>
@@ -599,7 +603,7 @@ namespace heatsink::gl {
 		auto size   = basic_view::get_size();
 
 		// The view should be aligned relative to the size of the mapping type.
-		if ((offset % sizeof(T)) || (size % sizeof(T))) {
+		if (auto align = sizeof(T); (offset % align) || (size % align)) {
 			make_error_stream("gl::buffer::mapping")
 				<< "buffer mapping "
 				<< "(offset=" << offset << ", size=" << size << ") "
