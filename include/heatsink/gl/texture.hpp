@@ -3,11 +3,15 @@
 #include <cassert>
 #include <cstdlib>
 #include <iterator>
+#include <ostream>
 #include <type_traits>
 
 #include <glm/glm.hpp>
-#include <glm/ext/vector_uint1.hpp>
+#include <glm/gtc/vec1.hpp>
+#include <glm/gtx/string_cast.hpp>
 
+#include <heatsink/error/debug.hpp>
+#include <heatsink/error/exception.hpp>
 #include <heatsink/gl/object.hpp>
 #include <heatsink/gl/pixel_format.hpp>
 #include <heatsink/platform/gl.hpp>
@@ -246,6 +250,13 @@ namespace heatsink::gl {
 
 	public:
 		/**
+		 * Two extents can only be equal if their lengths match, and the values
+		 * of the active components are also equal.
+		 */
+		bool operator ==(const extents&) const;
+		bool operator !=(const extents&) const;
+
+		/**
 		 * Convert this size into its original `glm` vector type.
 		 * `glm::uvecN::length()` must be equivalent to the extent of this size,
 		 * or an exception will be thrown.
@@ -388,17 +399,44 @@ namespace heatsink::gl {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(is_tensor_v<T>);
 
+		assert(this->is_valid() && m_base == glm::uvec3(0));
 		// If a texture is not immutable, it cannot be multisample.
-		assert(this->is_valid() && !this->is_immutable());
-		assert(m_base == glm::uvec3(0));
-		assert(std::distance(begin, end) * sizeof(T) == size_of(es, format));
+		if (this->is_immutable())
+			throw exception("gl::texture", "cannot reallocate immutable texture.");
+		
+		if (auto size = std::distance(begin, end) * sizeof(T); size != size_of(es, format)) {
+			make_error_stream("gl::texture")
+				<< "cannot assign data "
+				<< "(size=" << size << ") "
+				<< "to texture "
+				<< "(extents=" << glm::to_string(es) << ", format=" << to_string(ifmt) << ")." << std::endl;
+
+			throw exception("gl::texture", "data size mismatch.");
+		}
 
 		auto t = this->get_target();
 		// Cubemap storage can only be reallocated with the no-data `set()`.
-		assert(!texture_traits::is_cubemap(t));
+		if (texture_traits::is_cubemap(t))
+			throw exception("gl::texture", "cannot reallocate cubemap with texture data.");
 
 		auto rank = texture_traits::rank(t);
-		assert(rank == es.get_length());
+		if (rank != es.get_length()) {
+			make_error_stream("gl::texture")
+				<< "cannot assign "
+				<< es.get_length() << "-dimensional "
+				<< "data to "
+				<< rank << "-dimensional "
+				<< "texture." << std::endl;
+
+			throw exception("gl::texture", "data dimension mismatch.");
+		}
+
+		// Like buffers, allocating to `0` bytes has no specific rules.
+		if (es == extents::zero(rank))
+			return;
+		// An extents cannot have only some dimensions be `0` (all or nothing).
+		if (auto zeroes = glm::equal(es.get(1), glm::uvec3(0)); glm::any(zeroes))
+			throw exception("gl::texture", "invalid texture extents.");
 
 		m_extents = es.get(1);
 		m_format  = ifmt;
@@ -423,16 +461,30 @@ namespace heatsink::gl {
 		using T = typename std::iterator_traits<Iterator>::value_type;
 		static_assert(is_tensor_v<T>);
 
-		assert(this->is_valid() && !this->is_empty());
-		assert(mip < m_levels);
+		assert(this->is_valid());
+		if (mip >= m_levels)
+			throw exception("gl::texture", "mipmap level out of bounds.");
 
 		auto es = this->get_extents(mip);
-		assert(std::distance(begin, end) * sizeof(T) == size_of(es, format));
+		if (auto size = std::distance(begin, end) * sizeof(T); size != size_of(es, format)) {
+			make_error_stream("gl::texture")
+				<< "cannot assign data "
+				<< "(size=" << size << ") "
+				<< "to texture "
+				<< "(extents=" << glm::to_string(es) << ", format=" << to_string(ifmt) << ")." << std::endl;
+
+			throw exception("gl::texture", "data size mismatch.");
+		}
 
 		auto t = this->get_target();
-		assert(!texture_traits::is_multisample(t));
+		if (texture_traits::is_multisample(t))
+			throw exception("gl::texture", "cannot update multisample texture directly.");
 		// If this is a cubemap, only single-face views should be updated.
-		assert(!texture_traits::is_cubemap(t) || (m_extents.z == 1));
+		if (texture_traits::is_cubemap(t) && m_extents.z != 1)
+			throw exception("gl::texture", "cannot update multiple cubemap faces simultaneously.");
+
+		if (this->is_empty())
+			return;
 
 		auto rank = texture_traits::rank(t);
 		if (t == GL_TEXTURE_CUBE_MAP) {
@@ -459,8 +511,13 @@ namespace heatsink::gl {
 
 	template<tensor T>
 	void texture::clear(std::size_t mip, const T& t, pixel_format format) {
-		assert(this->is_valid() && !this->is_empty());
-		assert(mip < m_levels);
+		assert(this->is_valid());
+		if (mip >= m_levels)
+			throw exception("gl::texture", "mipmap level out of bounds.");
+
+		// Check for errors as normal, but do nothing if empty.
+		if (this->is_empty())
+			return;
 
 		auto [bx, by, bz] = this->get_base(mip);
 		auto [sx, sy, sz] = this->get_extents(mip).get(1);
@@ -490,6 +547,6 @@ namespace heatsink::gl {
 	template<bool Const>
 	texture::basic_view<Const>::extents texture::basic_view<Const>::get_offset(std::size_t mip) const {
 		assert(this->is_valid());
-		return texture::get_base(mip);
+		return this->get_base(mip);
 	}
 }
