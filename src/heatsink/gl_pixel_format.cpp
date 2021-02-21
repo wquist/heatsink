@@ -56,11 +56,16 @@ namespace heatsink::gl {
 		return m_datatype;
 	}
 
-	std::size_t pixel_format::get_size() const {
-		auto datasize = size_of(m_datatype);
+	std::size_t size_of(pixel_format format) const {
+		auto ptype = format.get_datatype();
+
+		auto datasize = size_of(ptype);
 		// Assert here since m_datatype is assumed to be a valid GL type.
 		assert(datasize != 0);
 
-		return (is_packed(m_datatype)) ? datasize : datasize * format_traits::extent(m_format);
+		if (is_packed(ptype))
+			return datasize;
+		else
+			return datasize * format_traits::extent(format.get());
 	}
 }

@@ -51,17 +51,17 @@ namespace heatsink::gl {
 		 */
 		GLenum get_datatype() const;
 
-		/**
-		 * Retrieve the size, in bytes, a single pixel of this format consumes.
-		 */
-		std::size_t get_size() const;
-
 	private:
 		// The deduced image format.
 		GLenum m_format;
 		// The deduced image data type.
 		GLenum m_datatype;
 	};
+
+	/**
+	 * Calculate the size in bytes a single pixel of the given format consumes.
+	 */
+	std::size_t size_of(pixel_format);
 }
 
 namespace heatsink::gl {
