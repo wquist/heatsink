@@ -498,15 +498,23 @@ namespace heatsink::gl {
 			throw exception("gl::buffer", "bad internal format value.");
 		}
 
-		// No need to check for packed types as there are not allowed here.
-		auto pixel_size = size_of(itype) * format_traits::extent(ifmt);
+		auto pixel_size = size_of(format);
+		if (sizeof(T) != pixel_size) {
+			make_error_stream("gl::buffer")
+				<< "provided data "
+				<< "(size=" << sizeof(T) << ") "
+				<< "does not match pixel format "
+				<< "(size=" << pixel_size << ")." << std::endl;
+
+			throw exception("gl::buffer", "data size mismatch.");
+		}
 		// The base and size must be multiples of the "size" of the format (components * unit size).
 		if ((m_base % pixel_size) || (m_size % pixel_size)) {
 			make_error_stream("gl::buffer")
 				<< "buffer view "
 				<< "(offset=" << m_base << ", size=" << m_size << ") "
-				<< "is not compatible with alignment of format "
-				<< to_string(ifmt) << "." << std::endl;
+				<< "is not compatible with data alignment "
+				<< "(format=" << to_string(ifmt) << ")." << std::endl;
 
 			throw exception("gl::buffer", "bad buffer view alignment.");
 		}
