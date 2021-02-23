@@ -448,16 +448,6 @@ namespace heatsink::gl {
 		static_assert(std::is_standard_layout_v<T>);
 
 		assert(this->is_valid());
-
-		if (m_base % sizeof(T)) {
-			make_error_stream("gl::buffer")
-				<< "buffer view "
-				<< "(offset=" << m_base << ") "
-				<< "is not compatiable with alignment of datatype "
-				<< "(size=" << sizeof(T) << ")." << std::endl;
-
-			throw exception("gl::buffer", "bad buffer view alignment.");
-		}
 		if (auto size = std::distance(begin, end) * sizeof(T); size != m_size) {
 			make_error_stream("gl::buffer")
 				<< "cannot assign data "
@@ -466,6 +456,16 @@ namespace heatsink::gl {
 				<< "(size=" << m_size << ")." << std::endl;
 
 			throw exception("gl::buffer", "data size mismatch.");
+		}
+		// The current offset must match the alignment of the datatype.
+		if (m_base % sizeof(T)) {
+			make_error_stream("gl::buffer")
+				<< "buffer view "
+				<< "(offset=" << m_base << ") "
+				<< "is not compatiable with alignment of datatype "
+				<< "(size=" << sizeof(T) << ")." << std::endl;
+
+			throw exception("gl::buffer", "bad buffer view alignment.");
 		}
 
 		// Again, there are no specific rules for updating `0` bytes.
@@ -634,7 +634,7 @@ namespace heatsink::gl {
 		assert(this->is_valid());
 
 		this->bind();
-		// Use `view::get_size()`; the mapping `size()` is no longer in bytes.
+		// Use `basic_view::get_size()`; the mapping `size()` is not in bytes.
 		glFlushMappedBufferRange(this->get_target(), this->get_offset(), basic_view::get_size());
 	}
 
@@ -665,7 +665,7 @@ namespace heatsink::gl {
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::begin() {
 		assert(this->is_valid());
 		if (!(m_access & GL_MAP_WRITE_BIT))
-			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant iterator.");
+			throw exception("gl::buffer::mapping", "mapping is not writable.");
 
 		return m_data;
 	}
@@ -674,7 +674,7 @@ namespace heatsink::gl {
 	typename buffer::mapping<T>::iterator buffer::mapping<T>::end() {
 		assert(this->is_valid());
 		if (!(m_access & GL_MAP_WRITE_BIT))
-			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant iterator.");
+			throw exception("gl::buffer::mapping", "mapping is not writable.");
 
 		return (m_data + this->get_size());
 	}
@@ -694,7 +694,7 @@ namespace heatsink::gl {
 	const T* buffer::mapping<T>::get_data() const {
 		assert(this->is_valid());
 		if (!(m_access & GL_MAP_READ_BIT))
-			throw exception("gl::buffer::maping", "mapping is not readable.");
+			throw exception("gl::buffer::mapping", "mapping is not readable.");
 
 		return m_data;
 	}
@@ -703,7 +703,7 @@ namespace heatsink::gl {
 	T* buffer::mapping<T>::get_data() {
 		assert(this->is_valid());
 		if (!(m_access & GL_MAP_WRITE_BIT))
-			throw exception("gl::buffer::mapping", "mapping is not writable; use a constant data pointer.");
+			throw exception("gl::buffer::mapping", "mapping is not writable.");
 
 		return m_data;
 	}
