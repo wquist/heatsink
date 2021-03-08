@@ -406,9 +406,9 @@ namespace heatsink::gl {
 		
 		if (auto size = std::distance(begin, end) * sizeof(T); size != size_of(es, format)) {
 			make_error_stream("gl::texture")
-				<< "cannot assign data "
+				<< "cannot allocate data "
 				<< "(size=" << size << ") "
-				<< "to texture "
+				<< "for texture "
 				<< "(extents=" << glm::to_string(es) << ", format=" << to_string(ifmt) << ")." << std::endl;
 
 			throw exception("gl::texture", "data size mismatch.");
@@ -515,6 +515,8 @@ namespace heatsink::gl {
 		if (mip >= m_levels)
 			throw exception("gl::texture", "mipmap level out of bounds.");
 
+		// FIXME: check for additional errors like in buffer.
+
 		// Check for errors as normal, but do nothing if empty.
 		if (this->is_empty())
 			return;
@@ -524,7 +526,9 @@ namespace heatsink::gl {
 		auto pfmt  = format.get();
 		auto ptype = format.get_datatype();
 
-		glClearTexSubImage(this->get(), mip, bx, by, bz, sx, sy, sz, pfmt, ptype, address_of(*begin));
+		// FIXME: check T matches format.
+
+		glClearTexSubImage(this->get(), mip, bx, by, bz, sx, sy, sz, pfmt, ptype, address_of(&t));
 	}
 
 	template<bool Const>
